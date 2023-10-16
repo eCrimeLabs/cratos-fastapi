@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CRATOS Config token</title>
+    <script>
+        function validate(){
+            var protoName = document.getElementById('protoNameId').value;
+			var portNumber = document.getElementById('portNumberId').value;
+            var domainName = document.getElementById('domainNameId').value;
+			var authKey = document.getElementById('authKeyId').value;
+			var expirationDate = document.getElementById('expirationDateId').value;
+
+            var protoNameRGEX = /^(https|http)$/;
+            var portNumberRGEX = /^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$/;
+			var domainNameRGEX = /^[a-zA-Z0-9\.\:]{4,75}$/;
+			var authKeyRGEX = /^[a-zA-Z0-9]{40,72}$/;
+			var expirationDateRGEX = /^(\b(19|20)[0-9]{2}[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])\b)$/;
+			
+            var protoNameResult = protoNameRGEX.test(protoName);
+            var portNumberResult = portNumberRGEX.test(portNumber);
+            var domainNameResult = domainNameRGEX.test(domainName);
+            var authKeyResult = authKeyRGEX.test(authKey);
+            var expirationDateResult = expirationDateRGEX.test(expirationDate);
+            if(protoNameResult == false) { alert('An invalid protocol were choosen'); return false; }
+            if(portNumberResult == false) { alert('Invalid port number'); return false; }
+            if(domainNameResult == false) { alert('Invalid Domain or IP'); return false; }
+            if(authKeyResult == false) { alert('Invalid MISP Auth key'); return false; }
+            if(expirationDateResult == false) { alert('Invalid expiration date'); return false; }   
+            return true;
+          }
+    </script>    
+    <style>
+
+        * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        }
+
+        html, body {
+        height: 100%;
+        }
+
+        body {
+        font: 14px/1 'Roboto', sans-serif;
+        color: #fff;
+        background: #333;
+        -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        input,
+        select {
+        font-family: inherit;
+        font-size: 100%;
+        vertical-align: baseline;
+        border: 0;
+        outline: 0;
+        color: #fff;
+        }
+
+        button::-moz-focus-inner,
+        input::-moz-focus-inner {
+        border: 0;
+        padding: 0;
+        }
+
+        [placeholder]::-webkit-input-placeholder { color: rgba(255,255,255,.8); }
+        [placeholder]:hover::-webkit-input-placeholder { color: rgba(255,255,255,.4); }
+        [placeholder]:focus::-webkit-input-placeholder { color: transparent; }
+
+        [placeholder]::-moz-placeholder { color: rgba(255,255,255,.8); }
+        [placeholder]:hover::-moz-placeholder { color: rgba(255,255,255,.4); }
+        [placeholder]:focus::-moz-placeholder { color: transparent; }
+
+        [placeholder]:-ms-input-placeholder { color: rgba(255,255,255,.8); }
+        [placeholder]:hover:-ms-input-placeholder { color: rgba(255,255,255,.4); }
+        [placeholder]:focus:-ms-input-placeholder { color: transparent; }
+
+        form {
+        width: 800px;
+        margin: 50px auto;
+        }
+
+        input[type="text"] {
+        display: block;
+        width: 400px;
+        margin: 0 0 20px;
+        padding: 8px 12px 10px 12px;
+        border: 1px solid rgba(0,0,0,.5);
+        background: rgba(0,0,0,.25);
+        }
+
+        input[type="int"] {
+        display: block;
+        width: 400px;
+        margin: 0 0 20px;
+        padding: 8px 12px 10px 12px;
+        border: 1px solid rgba(0,0,0,.5);
+        background: rgba(0,0,0,.25);
+        }        
+
+        select {
+        display: block;
+        width: 400px;
+        margin: 0 0 20px;
+        padding: 8px 12px 10px 12px;
+        border: 1px solid rgba(0,0,0,.5);
+        background: rgba(0,0,0,.25);
+        }
+
+        input[type="date"] {
+        display: block;
+        width: 400px;
+        margin: 0 0 20px;
+        padding: 8px 12px 10px 12px;
+        border: 1px solid rgba(0,0,0,.5);
+        background: rgba(0,0,0,.25);
+        }
+
+        input[type="submit"] {
+        display: block;
+        width: 150px;
+        margin: 0 0 20px;
+        padding: 8px 0 10px 0;
+        text-align: center;
+        border: 1px solid rgba(0,0,0,.5);
+        background: rgba(0,0,0,.25);
+        }
+
+        .container {
+        border-radius: 5px;
+        padding: 20px;
+        }
+
+        .col-25 {
+        float: left;
+        width: 25%;
+        margin-top: 14px;
+        }
+
+        .col-75 {
+        float: left;
+        width: 75%;
+        margin-top: 6px;
+        }
+
+        .col-100 {
+        float: center;
+        width: 100%;
+        margin-top: 6px;
+        }        
+
+        /* Clear floats after the columns */
+        .row:after {
+        content: "";
+        display: table;
+        clear: both;
+        }
+        /* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
+        @media screen and (max-width: 600px) {
+            .col-25, .col-75, .col-100, input[type=submit] {
+                width: 100%;
+                margin-top: 0;
+            }
+        }        
+    </style>    
+</head>
+<body>
+<center><img src="/img/logo.png" width="250"/></center>
+<br>
+<h1 data-theme="dark"><center>Generate a configuration token for authentication through API</center></h1>
+<div class="container">
+<form method="post" onsubmit="return validate()" autocomplete="off">
+    <div class="row">
+        <div class="col-25">
+            <label for="proto">Name</label>
+        </div>
+        <div class="col-75">
+            <select id="protoNameId" name="proto" value="https://">
+                <option value="https" selected>https://</option>
+                <option value="http">http://</option>
+            </select>    
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-25">
+            <label for="domain">FQDN</label>
+        </div>
+        <div class="col-75">
+            <input type="text" id="domainNameId" name="domain" placeholder="misp.example.net" required />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-25">
+            <label for="port">port</label>
+        </div>
+        <div class="col-75">
+            <input type="int" id="portNumberId" name="port" placeholder="443" required />
+        </div>
+    </div>    
+    <div class="row">
+        <div class="col-25">
+            <label for="auth">MISP Authentication Key</label>
+        </div>   
+        <div class="col-75">     
+            <input type="text" id="authKeyId" name="auth" placeholder="ahPhsQSwDlkjtrk8vQ0jRivXtz3acfPiZ9RvzCsn" required />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-25">
+            <label for="auth">Key Expiration</label>
+        </div>   
+        <div class="col-75">           
+            <input type="date" id="expirationDateId" name="expire" min="2023-01-01" required /><br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-100">
+            <input type="submit">
+        </div>
+    </div>
+</form>
+</div>
+<center>
+    <p><b>Authentication token:</b><br> {{ result }}</p><br>
+</center>
+</body>
+</html>

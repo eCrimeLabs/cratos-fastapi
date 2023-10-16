@@ -1,0 +1,17 @@
+{
+    "debug": false,
+    "encryption_key": "23546f6461795f31735f405f4e6963335f4461795f54305f52756c655f546865",
+    "salt": "z32wVfsUuSL8LfvFz32wVfsUuSL8LfvF",
+    "memcached_auth": true,    
+    "memcached_user": "<Memcached User>",
+    "memcached_pass": "<Memcached Password>",
+    "memcached_host": "127.0.0.1",
+    "memcached_port": "11212",
+    "memcached_enabled": true,
+    "allways_allowed_ips": [
+        "100.64.3.0/24",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16"
+    ]
+}

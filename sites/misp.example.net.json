@@ -1,0 +1,24 @@
+{
+    "enabled": true,
+    "debug": false,
+    "company": "Example ApS",
+    "tag": "example",
+    "mispVerifyCert": true,
+    "mispTimeoutSeconds": 100, 
+    "mispDebug": true,
+    "memcached_all_timeout": 300, 
+    "falsepositive_timeout": "1w",
+    "list_stats": "1w",
+    "allowed_ips": [
+        "10.0.0.0/8",
+        "127.0.0.1/32",
+        "192.168.1.0/24"
+    ],
+    "custom_feeds": {
+        "cust1": ":incident-classification=cust1",
+        "cust2": ":incident-classification=cust2",
+        "cust3": ":incident-classification=cust3",
+        "cust4": ":incident-classification=cust4",
+        "cust5": ":incident-classification=cust5"
+    }
+}
