@@ -4,6 +4,7 @@
         "txt",
         "xml",
         "yml",
+        "b64",
         "verb"
     ],
     "feeds": [

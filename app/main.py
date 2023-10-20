@@ -36,7 +36,6 @@ CRATOS_VERSION="1.0.1"
 
 apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
-#apiKeyCookie = APIKeyCookie(name=API_KEY_NAME, auto_error=False)
 
 description = """
 CRATOS - FastAPI proxy is your secure and optimized integration between your security infrastructure and your MISP Threat Sharing Platform.
@@ -57,7 +56,6 @@ app = FastAPI(
         "url": "https://github.com/eCrimeLabs/cratos-fastapi"
         },
     docs_url=None, 
-#    redoc_url=None, 
     swagger_ui_parameters={"defaultModelsExpandDepth": -1},
     license_info={
         "name": "License: MIT License",
@@ -107,6 +105,9 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
+    """ 
+    It is essential that the FastAPI gets the real IP address of the visitor in order to validate the IP address
+    """
     x_get_real = request.headers.get("X-Real-IP")
     if x_get_real:
         # From nginx: proxy_set_header X-Real-IP $remote_addr; 
@@ -295,9 +296,8 @@ async def delete_cached_feeds_data(
     """
     cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
     cachingKeyFP = dependencies.md5HashCacheKey(dataType + api_key)
-    if (app.configCore['memcached_enabled']):
-        cacheResponse = dependencies.memcacheDeleteData(cachingKeyData)
-        cacheResponse = dependencies.memcacheDeleteData(cachingKeyFP)
+    cacheResponse = dependencies.memcacheDeleteData(cachingKeyData)
+    cacheResponse = dependencies.memcacheDeleteData(cachingKeyFP)
     return Response(content='{"ok": True}', media_type='application/json')
 
 
@@ -326,15 +326,12 @@ async def get_feeds_data(
     """
     cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
 
-    if (app.configCore['memcached_enabled']):
-        cacheResponseData = dependencies.memcacheGetData(cachingKeyData, returnedDataType)
-    else:
-        cacheResponseData['cacheHit'] = False
-
+    cacheResponseData = dependencies.memcacheGetData(cachingKeyData, returnedDataType)
     if (cacheResponseData['cacheHit']):
         headers = {"X-Cache": "HIT"}
         return Response(content=cacheResponseData['content'], media_type=cacheResponseData['content_type'], headers=headers)
-
+    else:
+        cacheResponseData['cacheHit'] = False
    # mispFalsePositive = feeds.getFalsePositiveData(dataType, dataAge, app.configCore)
     mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
     if (not (mispResponse['status']) and (mispResponse['error_num'] == 1)):

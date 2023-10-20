@@ -1,6 +1,11 @@
 import requests
 from pymisp import PyMISP
 from app import dependencies
+from datetime import datetime
+
+class Paths:
+    VERSION = '/servers/getVersion.json'
+    ATTRIBUTE_STATISTICS = '/attributes/attributeStatistics'
 
 def mispSearchAttributesSimpel(requestData: dict) -> dict:
     requestResponse = {}
@@ -114,9 +119,13 @@ def mispRequestHeader(mispAuthKey):
 
 
 def mispGetVersion(mispURL: str, mispAuthKey: str) -> dict:
+    utcNow = datetime.utcnow()
+    unixtimestamp = int(utcNow.timestamp())
     headers=mispRequestHeader(mispAuthKey)
-    mispResponse = mispGETRequest(mispURL + '/servers/getVersion.json', headers, 5, True)
+#    mispResponse = mispGETRequest(mispURL + '/servers/getVersion.json', headers, 5, True)
+    mispResponse = mispGETRequest(mispURL + Paths.VERSION, headers, 5, True)
     mispResponse['misp_host'] = mispURL
+    mispResponse['unixtimestamp'] = unixtimestamp
     if (mispResponse['status']):
         if (not 'version' in mispResponse['content']):
             mispResponse['status'] = False

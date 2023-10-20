@@ -1,0 +1,15 @@
+#!/bin/bash
+
+APP_MODULE="app.main:app"   # Change this to your FastAPI app module
+HOST="0.0.0.0"              # Host to listen on
+PORT="8080"                 # Port to listen on
+WORKERS="4"                 # Number of Uvicorn worker processes
+LOGPATH="log_conf.yaml"     # Configuration file for univorn related to logging
+
+
+# ONLY Uncomment one of the below.
+# Uncomment below if you would like additional logging besides nginx
+#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --proxy-headers --log-config=${LOGPATH}
+
+# Uncomment below if you feel that no need to log from the application itself
+#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --proxy-headers

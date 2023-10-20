@@ -57,6 +57,7 @@ class ModelOutputType(str, Enum):
     json = "json"
     xml = "xml"
     yaml = "yaml"
+    b64 = "b64"
 
 class ModuleOutputAge(str, Enum):
     oneHour = "1h"

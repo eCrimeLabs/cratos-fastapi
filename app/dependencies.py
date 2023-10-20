@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import pprint
+import sys
 import json
 import base64
 import hashlib
@@ -15,6 +16,18 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
+
+def base64List(listData: list) -> list:
+    """ Recieves a list of string values converts every entry into base64 and returns this in a list.
+    :param listData: This is the list of strings that will be converted.
+    :return: list of strings but converted into Base64.
+    """  
+    listOutput = []
+    for item in listData:
+       encodedItem = base64.b64encode(item.encode('utf-8')).decode('utf-8')
+       listOutput.append(encodedItem)
+    return (listOutput)
+
 
 def cidrToIPs(cidr):
     ips = ip_network(cidr)
@@ -264,6 +277,7 @@ def decryptString(token: str, salt: str, password: str) -> dict:
 
 def md5HashCacheKey(inputString: str) -> str:
     result = hashlib.md5(inputString.encode())
+    # file deepcode ignore InsecureHash: This is used to generate a unique key in the Memcached, and the possibility of a collision on the structured data that is hashed with MD5 is not seen as a risk.
     return(result.hexdigest())
 
 def memcacheAddData(dataKey: str, dataValue: str, dataExpire: int) -> bool:

@@ -128,6 +128,7 @@ def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachin
         'xml': 'text/xml',
         'yaml': 'text/plain',
         'txt': 'text/plain',
+        'b64': 'text/plain',
         'json': 'application/json'
     }
 
@@ -165,6 +166,14 @@ def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachin
         returnValue['content'] = outputContent
         if (cachingTime > 0):
             dependencies.memcacheAddData(cachingKey, outputContent, cachingTime)
+        return(returnValue)
+    elif (outputType.lower() == "b64"):
+        convertedBlob = dependencies.base64List(outputBlob)
+        outputContent = "\r\n".join(convertedBlob)
+        returnValue['content_type'] = contentType[outputType]
+        returnValue['content'] = outputContent
+        if (cachingTime > 0):
+            dependencies.memcacheAddData(cachingKey, outputContent, cachingTime)      
         return(returnValue)
 
 def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
