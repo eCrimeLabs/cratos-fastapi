@@ -18,3 +18,5 @@ ipaddress
 typing
 email-validator
 python-binary-memcached
+urllib3>=1.26.18 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=3.0.1 # not directly required, pinned by Snyk to avoid a vulnerability
