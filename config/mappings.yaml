@@ -1,0 +1,110 @@
+output:
+  - json
+  - txt
+  - xml
+  - yml
+  - b64
+  - verb
+feeds:
+  - incident
+  - passive
+  - active
+  - hunt
+ages:
+  "1h": "-1 hour"
+  "2h": "-2 hours"
+  "6h": "-6 hours"
+  "12h": "-12 hours"
+  "1d": "-1 day"
+  "2d": "-2 days"
+  "3d": "-3 days"
+  "4d": "-4 days"
+  "5d": "-5 days"
+  "6d": "-6 days"
+  "1w": "-7 days"
+  "2w": "-14 days"
+  "3w": "-21 days"
+  "1m": "-1 month"
+  "2m": "-2 months"
+  "3m": "-3 months"
+  "4m": "-4 months"
+  "5m": "-5 months"
+  "6m": "-6 months"
+  "9m": "-9 months"
+  "1y": "-1 year"
+  "2y": "-2 years"
+  "4y": "-4 years"
+  "10y": "-10 years"
+types:
+  ipv4ext:
+    - ip-src
+    - ip-dst
+    - domain|ip
+    - ip-dst|port
+    - ip-src|port
+  ipv4:
+    - ip-src
+    - ip-dst
+    - domain|ip
+    - ip-dst|port
+    - ip-src|port
+  ipv6:
+    - ip-src
+    - ip-dst
+    - domain|ip
+    - ip-dst|port
+    - ip-src|port
+  cidr4:
+    - ip-src
+    - ip-dst
+  domain:
+    - domain
+  hostname:
+    - hostname
+    - domain|ip
+    - hostname|port
+  url:
+    - url
+  md5:
+    - md5
+    - filename|md5
+  sha1:
+    - sha1
+    - filename|sha1
+  sha256:
+    - sha256
+    - filename|sha256
+  mutex:
+    - mutex
+  snort:
+    - snort
+  yara:
+    - yara
+  sigma:
+    - sigma
+  x509-fingerprint-md5:
+    - x509-fingerprint-md5
+  x509-fingerprint-sha1:
+    - x509-fingerprint-sha1
+  x509-fingerprint-sha256:
+    - x509-fingerprint-sha256
+  email-address:
+    - email-dst
+    - email-src
+  email-subject:
+    - email-subject
+  email-attachment:
+    - email-attachment
+  vulnerability:
+    - vulnerability
+  ja3:
+    - ja3-fingerprint-md5
+  hassh-md5:
+    - hassh-md5
+  hasshserver-md5:
+    - hasshserver-md5
+  imphash:
+    - imphash
+  crypto-currency:
+    - btc
+    - xmr

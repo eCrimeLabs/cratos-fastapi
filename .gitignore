@@ -159,4 +159,3 @@ sites/*.json
 sites/*.yaml
 config/config.json
 config/config.yaml
-config/mappings.yaml
