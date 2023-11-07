@@ -1,0 +1,4 @@
+output: list(str())
+feeds: list(str())
+ages: map(key=str())
+types: map(str(), list())

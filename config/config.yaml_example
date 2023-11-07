@@ -1,0 +1,15 @@
+---
+
+debug: False
+encryption_key: "<GENERATE ME>"
+salt: "<GENERATE ME>"
+memcached_user: ""
+memcached_pass: ""
+memcached_host: "127.0.0.1"
+memcached_port: "11211"
+memcached_enabled: True
+allways_allowed_ips:
+  - "100.64.3.0/24"
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"

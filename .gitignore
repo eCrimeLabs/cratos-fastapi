@@ -156,4 +156,7 @@ cython_debug/
 cratos-fastapi.code-workspace
 .vscode/launch.json
 sites/*.json
+sites/*.yaml
 config/config.json
+config/config.yaml
+config/mappings.yaml
