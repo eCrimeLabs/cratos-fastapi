@@ -235,6 +235,8 @@ sudo supervisorctl
 
 If the Cratos FastAPI is running you should be able to connect to is and we recommend starting on the help page "https://cratos.yourdomain.com/v1/help"
 
+"https://cratos.yourdomain.com/v1/generate_token_form" to generate your auth token
+
 # Contributing
 There is allways space to contribute to the Cratos FastAPI project.
 
