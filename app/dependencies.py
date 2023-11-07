@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import pprint
-import sys
 import json
+import yaml
 import base64
 import hashlib
 import os
@@ -109,7 +108,7 @@ def isUrlSafeBase64(securityToken: str) -> dict:
 def ipOnAllowList(srcIP: str, globalIPs: list, orgIPs: list) -> dict:
     """ Validates if visiting src IP is in the allowed to access site through the API
     :param srcIP: Src IP of the visiting party
-    :param globalIPs: List of core IP's that is allowed for all Sites (config.json) - e.g. related to monitoring services
+    :param globalIPs: List of core IP's that is allowed for all Sites (config.yaml) - e.g. related to monitoring services
     :param orgIPs: List of IPs allowed related to a specific MISP instance
     :return: Dict with informaiton if the IP is allowed or not 
     """      
@@ -185,10 +184,10 @@ def orgConfigExtraction(decryptedConfigToken: str) -> dict:
             return(tokenExpiration)
 
         try:
-            keyExists = os.path.exists(os.path.join('sites', str(configData['apiTokenFQDN']) + '.json'))
+            keyExists = os.path.exists(os.path.join('sites', str(configData['apiTokenFQDN']) + '.yaml'))
             if (keyExists):
-                with open('sites/' + configData['apiTokenFQDN'] + '.json', 'r') as f:
-                    configData['config'] = json.load(f)     
+                with open('sites/' + configData['apiTokenFQDN'] + '.yaml', 'r') as f:
+                    configData['config'] = yaml.safe_load(f)    
                     configData['status'] = True        
                     return(configData)
             else:
@@ -224,8 +223,8 @@ def validateStringBool(plainText: str) -> bool:
 
 def setKDF(salt: str, password: str) -> object:
     """ Key derivation functions derive bytes suitable for cryptographic operations from passwords or other data sources using a pseudo-random function (PRF)
-    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.json)
-    :param password: Password for decryption (stored in config.json)
+    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.yaml)
+    :param password: Password for decryption (stored in config.yaml)
     :return: Cryptografic fernet object
     """      
     kdf = PBKDF2HMAC(
@@ -242,8 +241,8 @@ def setKDF(salt: str, password: str) -> object:
 def encryptString(plainText: str, salt: str, password: str) -> dict:
     """ String encryption function using sha256 + PBKDF2HMAC with 600.000 iterations and a salt.
     :param plainText: String content to be encrypted 
-    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.json)
-    :param password: Password for decryption (stored in config.json)
+    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.yaml)
+    :param password: Password for decryption (stored in config.yaml)
     :return: Returns a dict from where the cipher text is stored in base64 url safe format.
     """     
     returnData = {}
@@ -260,8 +259,8 @@ def encryptString(plainText: str, salt: str, password: str) -> dict:
 def decryptString(token: str, salt: str, password: str) -> dict:
     """ String decryption function using sha256 + PBKDF2HMAC with 600.000 iterations and a salt.
     :param token: String content to be decyrpted
-    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.json)
-    :param password: Password for decryption (stored in config.json)
+    :param salt: In cryptography, a salt is random data that is used as an additional input to a one-way function that hashes data, a password or passphrase. (stored in config.yaml)
+    :param password: Password for decryption (stored in config.yaml)
     :return: Returns a dict from where the plaintext is stored.
     """        
     returnData = {}

@@ -43,10 +43,10 @@ We will start here as the dependencies to the code running will be used later.
 | filename/folder      | Description |
 | -------------------- | ------------------------------------------------------------------- |
 | log_conf.yaml        | This is the logging configuration file for uvicorn                  |
-| config/config.json   | Contains the core configurations                                    |
-| sites/\<fqdn\>.json  | This contains the configuration files related to each MISP instance |
+| config/config.yaml   | Contains the core configurations                                    |
+| sites/\<fqdn\>.yaml  | This contains the configuration files related to each MISP instance |
 
-### config/config.json ####
+### config/config.yaml ####
 
 Here is a oneliner that can be used to to create an encryption key
 
@@ -58,26 +58,26 @@ Copy the SHA256 string into the "encryption_key" field.
 
 for the "salt" it will be similar:
 ```
-< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 32; echo
+< /dev/urandom tr -dc 'A-Za-z0-9!#?' | head -c 32; echo
 ```
 
-Now update the "config/config.json and save.
-```json
-{
-    "debug": false,
-    "encryption_key": "<GENERATE ME>",
-    "salt": "<GENERATE ME>",
-    "memcached_user": "",
-    "memcached_pass": "",
-    "memcached_host": "127.0.0.1",
-    "memcached_port": "11211",
-    "allways_allowed_ips": [
-        "127.0.0.0/24",
-        "192.168.0.0/16",
-        "172.16.0.0/12",
-        "10.0.0.0/8"
-    ]
-}
+Now update the "config/config.yaml and save.
+```yaml
+---
+
+debug: False
+encryption_key: "<GENERATE ME>"
+salt: "<GENERATE ME>"
+memcached_user: ""
+memcached_pass: ""
+memcached_host: "127.0.0.1"
+memcached_port: "11211"
+memcached_enabled: True
+allways_allowed_ips:
+  - "100.64.3.0/24"
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
 
 ```
 
@@ -85,45 +85,43 @@ Now update the "config/config.json and save.
 
 ## Configuring your first MISP connection config
 
-In the folder sites you generate a file with the name "\<FQDN\>.json" this can also be "\<IP\>.json" but it has to map the MISP instance, as it is used as one of the validators if Cratos FastAPI is allowed to connect to this instance and how.
+In the folder sites you generate a file with the name "\<FQDN\>.yaml" this can also be "\<IP\>.yaml" but it has to map the MISP instance, as it is used as one of the validators if Cratos FastAPI is allowed to connect to this instance and how.
 
 The configuraiton files is located in the folder "sites"
 
-### misp.example.org
+### misp.example.net
 
 So in this scenario our MISP instance is "misp.example.net" so we create the file in the sites folder:
 
 ```bash
-$ touch sites/misp.example.org
+$ touch sites/misp.example.net.yaml
 ```
 
 Now edit the file:
 
-```json
-{
-    "enabled": true,
-    "debug": false,
-    "company": "Example ApS",
-    "tag": "example",
-    "mispVerifyCert": true,
-    "mispTimeoutSeconds": 100, 
-    "mispDebug": true,
-    "memcached_all_timeout": 300, 
-    "falsepositive_timeout": "1w",
-    "list_stats": "1w",
-    "allowed_ips": [
-        "10.0.0.0/8",
-        "127.0.0.1/32",
-        "192.168.1.0/24"
-    ],
-    "custom_feeds": {
-        "cust1": ":incident-classification=sinkhole",
-        "cust2": ":incident-classification=permanent-block",
-        "cust3": ":incident-classification=tor-exitnode",
-        "cust4": ":incident-classification=cust4",
-        "cust5": ":incident-classification=cust5"
-    }
-}
+```yaml
+---
+
+enabled: true
+debug: false
+company: Example ApS
+tag: example
+mispVerifyCert: true
+mispTimeoutSeconds: 100
+mispDebug: true
+memcached_all_timeout: 300
+falsepositive_timeout: "1w"
+list_stats: "1w"
+allowed_ips:
+  - "10.0.0.0/8"
+  - "127.0.0.1/32"
+  - "192.168.1.0/24"
+custom_feeds:
+  cust1: ":incident-classification=cust1"
+  cust2: ":incident-classification=cust2"
+  cust3: ":incident-classification=cust3"
+  cust4: ":incident-classification=cust4"
+  cust5: ":incident-classification=cust5"
 
 ```
 
@@ -234,6 +232,8 @@ sudo supervisorctl
 # Everything is working
 
 If the Cratos FastAPI is running you should be able to connect to is and we recommend starting on the help page "https://cratos.yourdomain.com/v1/help"
+
+"https://cratos.yourdomain.com/v1/generate_token_form" to generate your auth token
 
 # Contributing
 There is allways space to contribute to the Cratos FastAPI project.

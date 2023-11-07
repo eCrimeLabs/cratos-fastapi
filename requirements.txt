@@ -18,3 +18,6 @@ ipaddress
 typing
 email-validator
 python-binary-memcached
+yamale
+urllib3>=1.26.18
+werkzeug>=3.0.1
