@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """Module documentation
-   If this is updated ensure that it aligns with the config/mappings.json file
+   If this is updated ensure that it aligns with the config/mappings.yaml file
 """
 from enum import Enum
 from typing import Union

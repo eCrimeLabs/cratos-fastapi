@@ -275,9 +275,30 @@ def decryptString(token: str, salt: str, password: str) -> dict:
     return(returnData)
 
 def md5HashCacheKey(inputString: str) -> str:
+    """ Generate MD5Hash key based on request data to used in Memcached
+    : param inputString: String content related to the requested data
+    : return: Returns a string with a MD5 Checksum (32 bytes) 
+    """
     result = hashlib.md5(inputString.encode())
     # file deepcode ignore InsecureHash: This is used to generate a unique key in the Memcached, and the possibility of a collision on the structured data that is hashed with MD5 is not seen as a risk.
     return(result.hexdigest())
+
+def memcacheCheckReadWrite() -> bool:
+    """ Adds data to Memcache for cached responses, and attempts to read from this to validate that connection to Memcached is working.
+    :return: Returns a boolean based on either success(True) or Failure(False) of the action.
+    """  
+    mcBool = memcacheAddData('CratosTestString', 'CratosTestString', 2) 
+    if (mcBool):
+        returnValue = memcacheGetData('CratosTestString','txt')
+        if (returnValue['cacheHit']):
+            """ Memcached works and it is possible to read and write """
+            return(True)
+        else:
+            return(False)
+    else:
+        """ There are indications that it was not possible to write to the Memcached. """
+        return(False)
+
 
 def memcacheAddData(dataKey: str, dataValue: str, dataExpire: int) -> bool:
     """ Adds data to Memcache for cached responses, including an automated expiration.

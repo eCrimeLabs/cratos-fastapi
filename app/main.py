@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import sys
 from sys import prefix
 from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
@@ -96,6 +97,14 @@ async def getApiToken(
         status_code=HTTP_403_FORBIDDEN, detail="Could not validate token or not set"
     )
 
+@app.on_event("startup")
+async def startup_event():
+    print ("Statup Checks")
+    if dependencies.memcacheCheckReadWrite():
+        print ("\t- Memcached check: Success")
+    else:
+        print ("\t- Memcached check: Failed (No data caching supported)")
+
 @app.exception_handler(ValueError)
 async def value_error_exception_handler(request: Request, exc: ValueError):
     return JSONResponse(
@@ -129,6 +138,11 @@ async def homepage():
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse(favicon_path)
+
+@app.get("/ping")
+async def pong():
+    """ The following route can be used to continually test that the service is running """
+    return {"ping": "pong"}
 
 @app.get("/v1/generate_token_form", 
          tags=["authentication"],

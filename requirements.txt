@@ -1,4 +1,5 @@
 fastapi
+pytest
 fastapi_versioning
 uvicorn
 pydantic
@@ -12,7 +13,7 @@ pycryptodome
 scrypt
 enum34
 json2xml
-cryptography
+cryptography>=41.0.7
 dicttoxml
 ipaddress
 typing
