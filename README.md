@@ -141,7 +141,7 @@ The field from the "tag" combined with som build-in feeds and 5 custom feeds wil
 ## Installing system dependencies
 
 ```bash
-$ sudo apt install nginx libnginx-mod-http-headers-more-filter supervisor gcc openssl libssl-dev python-dev 
+$ sudo apt install nginx libnginx-mod-http-headers-more-filter supervisor gcc openssl libssl-dev python3-dev python3-venv
 ```
 
 ## Memcached (Optional)
