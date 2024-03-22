@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os 
+import os
 import sys
 import glob
 import yaml
 import yamale
-from yamale.validators import DefaultValidators, Validator, Regex
+from yamale.validators import DefaultValidators
+
 
 def validateSiteConfigs():
     schemaFile = os.path.join('sites', 'sites.schema')
@@ -13,7 +14,8 @@ def validateSiteConfigs():
     for file in sitesYaml:
         validated = schemaValidator(file, schemaFile)
         if not (validated):
-            raise Exception(file + " Schema Validation failed!")        
+            raise Exception(file + " Schema Validation failed!")
+
 
 def schemaValidator(yamlFile: str, schemaFile: str) -> bool:
     """ Performs some validation of the schema related to the yaml files
@@ -21,7 +23,7 @@ def schemaValidator(yamlFile: str, schemaFile: str) -> bool:
     :param schemaFile: the schema to validate against
     return: bool: Return True if ok, else return False
     """
-    validators = DefaultValidators.copy() 
+    validators = DefaultValidators.copy()
     schema = yamale.make_schema(schemaFile, validators=validators)
     data = yamale.make_data(yamlFile)
     try:
@@ -30,6 +32,7 @@ def schemaValidator(yamlFile: str, schemaFile: str) -> bool:
     except ValueError as e:
         print('Validation failed!\n%s' % str(e))
         return(False)
+
 
 def loadConfigYaml() -> dict:
     """ Loading the static config files related to the core Cratos FastAPI
@@ -56,15 +59,15 @@ def loadConfigYaml() -> dict:
         validated = schemaValidator(os.path.join('config', 'mappings.yaml'), os.path.join('config', 'mappings.schema'))
         if not (validated):
             raise Exception("Schema Validation failed!")
-        
     except Exception as e:
         # Handle other exceptions
         print("An error occurred while attempting to load mappings.yaml")
         print(f"Error message: {str(e)}")
-        sys.exit(1)   
+        sys.exit(1)
 
-    configCore.update(mappingsCore) 
+    configCore.update(mappingsCore)
     return(configCore)
+
 
 GLOBALCONFIG = loadConfigYaml()
 validateSiteConfigs()

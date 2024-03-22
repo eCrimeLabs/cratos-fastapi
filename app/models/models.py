@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, HttpUrl, validator
 from datetime import date
 import re
 
+
 class ModelFeedName(str, Enum):
     incident = "incident"
     block = "block"
@@ -23,6 +24,7 @@ class ModelFeedName(str, Enum):
     cust5 = "cust5"
     any = "any"
     fortyTwo = "42"
+
 
 class ModelDataType(str, Enum):
     ipvext = "ipv4ext"
@@ -52,12 +54,14 @@ class ModelDataType(str, Enum):
     imphash = "imphash"
     cryptoCurr = "crypto-currency"
 
+
 class ModelOutputType(str, Enum):
     txt = "txt"
     json = "json"
     xml = "xml"
     yaml = "yaml"
     b64 = "b64"
+
 
 class ModuleOutputAge(str, Enum):
     oneHour = "1h"

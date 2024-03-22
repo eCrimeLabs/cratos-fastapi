@@ -7,6 +7,7 @@ import re
 import ipaddress
 from dicttoxml import dicttoxml
 
+
 def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     definedMISPSearch = {}
     tags = []
@@ -20,7 +21,7 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     definedMISPSearch['to_ids'] = True
     definedMISPSearch['timestamp'] = requestData['timestamp']
     definedMISPSearch['returnFormat'] = 'json'
-    definedMISPSearch['includeEventTags'] = 'yes'    
+    definedMISPSearch['includeEventTags'] = 'yes'
     definedMISPSearch['enforceWarninglist'] = True
     definedMISPSearch['type'] = requestData['dataTypes']
     definedMISPSearch['withAttachments'] = False
@@ -28,13 +29,14 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     if (feed == 'incident' or feed == 'alert' or feed == 'hunt'):
         definedMISPSearch['published'] = False
     elif (feed == '42'):
-        definedMISPSearch['enforceWarninglist'] = False    
+        definedMISPSearch['enforceWarninglist'] = False
     elif (feed == 'falsepositive'):
         definedMISPSearch['published'] = False
         definedMISPSearch['enforceWarninglist'] = False
     else:
         pass
     return (definedMISPSearch)
+
 
 def getFeedNameToTag(prependTag: str, customFeeds: dict) -> dict:
     feedToTagDict = {'falsepositive': '!' + prependTag + ':incident-classification=false-positive'}
@@ -50,6 +52,7 @@ def getFeedNameToTag(prependTag: str, customFeeds: dict) -> dict:
         feedToTagDict[tagKey] = prependTag + customFeeds[tagKey]
     return (feedToTagDict)
 
+
 def formatWarninglistOutputData(inputBlob: dict, outputType: str) -> dict:
     returnValue = {}
     contentType = {
@@ -61,10 +64,16 @@ def formatWarninglistOutputData(inputBlob: dict, outputType: str) -> dict:
 
     if (outputType.lower() == "xml"):
         if 'Warninglists' in inputBlob['content'].keys():
-            xml=dicttoxml(inputBlob['content']['Warninglists'], custom_root='Warninglists', attr_type=False)
+            xml = dicttoxml(inputBlob['content']['Warninglists'],
+                          custom_root='Warninglists',
+                          attr_type=False
+                          )
             outputContent=xml.decode()
         elif 'Warninglist' in inputBlob['content'].keys():
-            xml=dicttoxml(inputBlob['content']['Warninglist']['WarninglistEntry'], custom_root='Warninglists', attr_type=False)
+            xml=dicttoxml(inputBlob['content']['Warninglist']['WarninglistEntry'],
+                          custom_root='Warninglists',
+                          attr_type=False
+                          )
             outputContent=xml.decode()
         else:
             pass
@@ -74,14 +83,20 @@ def formatWarninglistOutputData(inputBlob: dict, outputType: str) -> dict:
     #--------------------------------------------------------------------
     elif (outputType.lower() == "yaml"):
         if 'Warninglists' in inputBlob['content'].keys():
-            outputContent = yaml.dump(inputBlob['content']['Warninglists'], explicit_start=True, default_flow_style=False)
+            outputContent = yaml.dump(inputBlob['content']['Warninglists'],
+                                      explicit_start=True,
+                                      default_flow_style=False
+                                      )
         elif 'Warninglist' in inputBlob['content'].keys():
             outputContentList = []
             for WarninglistEntryDict in inputBlob['content']['Warninglist']['WarninglistEntry']:
                 for key, value in WarninglistEntryDict.items():
                     if (key == 'value'):
                         outputContentList.append(str(value))        
-            outputContent = yaml.dump(sorted(set(outputContentList)), explicit_start=True, default_flow_style=False)
+            outputContent = yaml.dump(sorted(set(outputContentList)), 
+                                      explicit_start=True,
+                                      default_flow_style=False
+                                      )
         else:
             pass        
         returnValue['content_type'] = contentType[outputType]
@@ -121,6 +136,7 @@ def formatWarninglistOutputData(inputBlob: dict, outputType: str) -> dict:
         returnValue['content_type'] = contentType[outputType]
         returnValue['content'] = outputContent
         return(returnValue)
+
 
 def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachingTime: int, cachingKey: str) -> dict:
     returnValue = {}
@@ -175,6 +191,7 @@ def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachin
         if (cachingTime > 0):
             dependencies.memcacheAddData(cachingKey, outputContent, cachingTime)      
         return(returnValue)
+
 
 def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
     rexDict = {
@@ -255,6 +272,7 @@ def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
                 returnData.append(resultStr)    
     return sorted(set(returnData))
 
+
 def getFalsePositiveData(type: str, age: str, configData: dict) -> dict:
     """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=false-positive
     :param type: The attribute type defined in the query
@@ -275,6 +293,7 @@ def getFalsePositiveData(type: str, age: str, configData: dict) -> dict:
     requestData['body'] = feedDefineMISPSearch('falsepositive', requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)    
+
 
 def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict) -> dict:
     requestResponse = {}

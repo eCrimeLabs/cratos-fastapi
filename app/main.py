@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 from sys import prefix
-from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, Form, Path, Query
+from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -33,7 +33,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 API_KEY_NAME = "token"
-CRATOS_VERSION="1.0.1"
+CRATOS_VERSION = "1.0.1"
 
 apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -61,9 +61,10 @@ app = FastAPI(
     license_info={
         "name": "License: MIT License",
         "url": "https://spdx.org/licenses/MIT.html",
-    },
+    }
 )
 app.mount("/img", StaticFiles(directory="img"), name='images')
+
 
 templates = Jinja2Templates(directory="templates/")
 favicon_path = 'templates/favicon.ico'
@@ -71,6 +72,7 @@ favicon_path = 'templates/favicon.ico'
 app.configCore = GLOBALCONFIG
 app.password = app.configCore['encryption_key'].encode()
 app.salt= app.configCore['salt'].encode()
+
 
 async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
@@ -99,11 +101,7 @@ async def getApiToken(
 
 @app.on_event("startup")
 async def startup_event():
-    print ("Statup Checks")
-    if dependencies.memcacheCheckReadWrite():
-        print ("\t- Memcached check: Success")
-    else:
-        print ("\t- Memcached check: Failed (No data caching supported)")
+    return
 
 @app.exception_handler(ValueError)
 async def value_error_exception_handler(request: Request, exc: ValueError):
@@ -128,7 +126,7 @@ async def add_process_time_header(request: Request, call_next):
     response = await call_next(request)
     return response
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def homepage():
     """
     Default front page of CRATOS FastAPI proxy
@@ -139,10 +137,15 @@ async def homepage():
 async def favicon():
     return FileResponse(favicon_path)
 
-@app.get("/ping")
+@app.get("/v1/status", tags=["status"], summary="Used for monitoring Cratos FastAPI and memcached integration avaliability.")
 async def pong():
-    """ The following route can be used to continually test that the service is running """
-    return {"ping": "pong"}
+    """ The following route can be used to continually monitor the service is running """
+    memcachedStatus = ""
+    if dependencies.memcacheCheckReadWrite():
+        memcachedStatus = "OK"
+    else:
+        memcachedStatus = "FAIL"
+    return {"ping": "pong", "memcachedstatus": memcachedStatus}
 
 @app.get("/v1/generate_token_form", 
          tags=["authentication"],
@@ -177,9 +180,10 @@ def form_post_json(
 @app.get("/v1/openapi.json", tags=["documentations"])
 async def get_open_api_endpoint():
     response = JSONResponse(
-        get_openapi(title="CRATOS - FastAPI proxy", version=3, routes=app.routes)
+        get_openapi(title="CRATOS - FastAPI proxy", version=CRATOS_VERSION, routes=app.routes)
     )
     return response
+
 
 @app.get("/v1/help", tags=["documentations"])
 async def get_documentation():
@@ -289,7 +293,7 @@ async def get_misp_warninglist(
         return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
 
 @app.delete("/v1/clear_cache/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
-         tags=["info"], 
+         tags=["feed"], 
          summary="Delete cached data related to specific feed",
          description="This deletes the cached data related to specific feed options and Auth Token."
 )
@@ -316,7 +320,7 @@ async def delete_cached_feeds_data(
 
 
 @app.get("/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
-         tags=["feeds"], 
+         tags=["feed"], 
          summary="Retrieve data from MISP composed into a simple return format",
          description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
 )
@@ -366,6 +370,3 @@ async def get_feeds_data(
         mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
         headers = {"X-Cache": "MISS"}
         return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)
-
-
-
