@@ -1,7 +1,7 @@
 import requests
 from pymisp import PyMISP
 from app import dependencies
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Paths:
     VERSION = '/servers/getVersion.json'
@@ -128,7 +128,7 @@ def mispGetVersion(mispURL: str, mispAuthKey: str) -> dict:
     :param mispAuthKey: The authentication key to the MISP instance
     return: dict: Returns a dict with the response from the MISP instance
     """
-    utcNow = datetime.utcnow()
+    utcNow = datetime.now(timezone.utc)
     unixtimestamp = int(utcNow.timestamp())
     headers=mispRequestHeader(mispAuthKey)
 #    mispResponse = mispGETRequest(mispURL + '/servers/getVersion.json', headers, 5, True)

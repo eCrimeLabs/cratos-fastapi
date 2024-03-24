@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 from sys import prefix
-from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Form, Path, Query
+from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Header, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 from typing import Union
 from typing_extensions import Annotated
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from pydantic import BaseModel, Field 
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_500_INTERNAL_SERVER_ERROR
@@ -138,11 +138,13 @@ async def process_proxy_header(request: Request, call_next):
     return response
 
 @app.get("/", include_in_schema=False)
-async def homepage():
+async def homepage(user_agent: Annotated[str | None, Header()] = None):
     """
     Default front page of CRATOS FastAPI proxy
     """    
-    return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": app.ClientIP}
+    utcNow = datetime.now(timezone.utc)
+    unixtimestamp = int(utcNow.timestamp())
+    return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": app.ClientIP, "User-Agent": user_agent, "timestamp": unixtimestamp}
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
