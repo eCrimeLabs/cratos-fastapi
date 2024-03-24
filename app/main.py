@@ -117,11 +117,23 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
 async def process_proxy_header(request: Request, call_next):
     """ 
     It is essential that the FastAPI gets the real IP address of the visitor in order to validate the IP address
+    in the config file it can be set if the application is behind a reverse proxy or not, this is also to ensure that an
+    attacker is not able to spoof a header that would be understood by the application as the real IP.
+    
+    If no reverse proxy is used, the client's IP address is used, else use the header defined in the config file.
+        - reverse_proxy: False
+        - reverse_proxy_header: "X-Forwarded-For"    
+            Known headers are:
+            - "X-Real-IP"
+            - "X-Forwarded-For"
     """
-    # From nginx: proxy_set_header X-Real-IP $remote_addr; 
-    # From other proxies using X-Forwarded-For
-    # Fallback to using the client's IP from request.client.host
-    app.ClientIP = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For") or request.client.host
+    boolReverseProxyUsage = app.configCore.get('reverse_proxy')
+    strReverseProxyeader = app.configCore.get('reverse_proxy_header')
+
+    if (boolReverseProxyUsage):
+        app.ClientIP = request.headers.get(strReverseProxyeader) or request.client.host
+    else:
+        app.ClientIP = request.client.host
     response = await call_next(request)
     return response
 
