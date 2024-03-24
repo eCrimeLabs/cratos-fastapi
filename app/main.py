@@ -336,7 +336,6 @@ async def delete_cached_feeds_data(
          summary="Retrieve data from MISP composed into a simple return format",
          description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
 )
-
 async def get_feeds_data(
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
