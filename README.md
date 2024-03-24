@@ -144,6 +144,19 @@ The field from the "tag" combined with som build-in feeds and 5 custom feeds wil
 $ sudo apt install nginx libnginx-mod-http-headers-more-filter supervisor gcc openssl libssl-dev python3-dev python3-venv
 ```
 
+## Configure reverse proxy settings if used 
+
+In the 'config.yaml' file there are the following two options
+- reverse_proxy (Boolean)
+- reverse_proxy_header (String)
+
+in the event that no reverse proxy is used in front of the API set the "reverse_proxy: False", else if "True" ensure that the 
+correct reverse proxy header key that contains the real source IP.
+
+Known headers that reverse proxies are seen using:
+- X-Forwarded-For
+- X-Real-IP
+
 ## Memcached (Optional)
 This is "Optional" in the event that you are using an allready existing memcached sever or cluster
 
