@@ -16,7 +16,7 @@ from typing_extensions import Annotated
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field 
-from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE
+from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_500_INTERNAL_SERVER_ERROR
 from starlette.responses import RedirectResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.templating import Jinja2Templates
@@ -31,6 +31,16 @@ import pprint
 import logging
 
 logger = logging.getLogger(__name__)
+
+error_mapping = {
+    1: HTTP_403_FORBIDDEN,
+    2: HTTP_503_SERVICE_UNAVAILABLE,
+    3: HTTP_504_GATEWAY_TIMEOUT,
+    4: HTTP_504_GATEWAY_TIMEOUT,
+    5: HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    6: HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    10: HTTP_503_SERVICE_UNAVAILABLE,
+}
 
 API_KEY_NAME = "token"
 CRATOS_VERSION = "1.0.1"
@@ -78,23 +88,16 @@ async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
     apiKeyHeader: str = Security(apiKeyHeader),
 ):
-    
-    if not (apiKeyQuery is None):
-        returnValue = dependencies.checkApiToken(apiKeyQuery, app.salt, app.password, app.ClientIP)
+    api_key = apiKeyQuery or apiKeyHeader
+
+    if api_key is not None:
+        returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, app.ClientIP)
         if returnValue['status']:
             app.configCore['requestConfig'] = returnValue['config']
-            return apiKeyQuery
+            return api_key
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN, detail=returnValue['detail']
         )
-    if not (apiKeyHeader is None):
-        returnValue = dependencies.checkApiToken(apiKeyHeader, app.salt, app.password, app.ClientIP)
-        if returnValue['status']:
-            app.configCore['requestConfig'] = returnValue['config']
-            return apiKeyHeader
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN, detail=returnValue['detail']
-        )                           
     raise HTTPException(
         status_code=HTTP_403_FORBIDDEN, detail="Could not validate token or not set"
     )
@@ -111,18 +114,14 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
     )
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def process_proxy_header(request: Request, call_next):
     """ 
     It is essential that the FastAPI gets the real IP address of the visitor in order to validate the IP address
     """
-    x_get_real = request.headers.get("X-Real-IP")
-    if x_get_real:
-        # From nginx: proxy_set_header X-Real-IP $remote_addr; 
-        client_ip = x_get_real
-    else:
-        # Fallback to using the client's IP from request.client.host
-        client_ip = request.client.host
-    app.ClientIP = client_ip
+    # From nginx: proxy_set_header X-Real-IP $remote_addr; 
+    # From other proxies using X-Forwarded-For
+    # Fallback to using the client's IP from request.client.host
+    app.ClientIP = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For") or request.client.host
     response = await call_next(request)
     return response
 
@@ -201,27 +200,22 @@ async def get_documentation():
 async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
     """ Check the connection status to the MISP instance
     :param apiKey: apiKey to authenticate the request
-    :return: JSON output of the minor informaiton on the MISP instance such as version and pyMISP version
+    :return: JSON output of the minor information on the MISP instance such as version and pyMISP version
     """       
     mispResponse = {}
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
     mispResponse = misp.mispGetVersion(mispURL, mispAuthKey)
-    if (not (mispResponse['status']) and (mispResponse['error_num'] == 1)):
-        raise HTTPException( status_code=HTTP_403_FORBIDDEN, detail=mispResponse['error'] + ' - ' + str(mispResponse['status_code']) )      
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 2)):
-        raise HTTPException( status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=mispResponse['error'] )  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 3)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )    
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 4)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )   
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 5)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 6)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                 
-    else:
-        mispResponse.pop('status')        
-        return(mispResponse)
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    mispResponse.pop('status')        
+    return mispResponse
 
 @app.get("/v1/statistics", 
          tags=["info"], 
@@ -229,7 +223,7 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
          description="Connects to the MISP instance and returns statistics API and outputs count of attribute types in a JSON format"
 )
 async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
-    """ Get content of MISP warninglists or list avaliable MISP warninglists
+    """ Get statistical data from the MISP instance, related to the attribute types.
     :param apiKey: apiKey to authenticate the request
     :return: JSON output of the statictics
     """    
@@ -237,21 +231,16 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
     mispResponse = misp.mispGetStatistics(mispURL, mispAuthKey)
-    if (not (mispResponse['status']) and (mispResponse['error_num'] == 1)):
-        raise HTTPException( status_code=HTTP_403_FORBIDDEN, detail=mispResponse['error'] + ' - ' + str(mispResponse['status_code']) )      
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 2)):
-        raise HTTPException( status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=mispResponse['error'] )  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 3)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )    
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 4)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )   
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 5)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 6)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                 
-    else:
-        mispResponse.pop('status')        
-        return(mispResponse)
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    mispResponse.pop('status')        
+    return mispResponse
 
 @app.get("/v1/warninglist/id/{warninglistId}/output/{returnedDataType}", 
          tags=["info"], 
@@ -276,21 +265,16 @@ async def get_misp_warninglist(
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
     mispResponse = misp.mispGetWarninglists(mispURL, mispAuthKey, warninglistId)
-    if (not (mispResponse['status']) and (mispResponse['error_num'] == 1)):
-        raise HTTPException( status_code=HTTP_403_FORBIDDEN, detail=mispResponse['error'] + ' - ' + str(mispResponse['status_code']) )      
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 2)):
-        raise HTTPException( status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=mispResponse['error'] )  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 3)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )    
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 4)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )   
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 5)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 6)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                 
-    else:
-        warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)    
-        return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)    
+    return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
 
 @app.delete("/v1/clear_cache/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
          tags=["feed"], 
@@ -350,23 +334,16 @@ async def get_feeds_data(
         return Response(content=cacheResponseData['content'], media_type=cacheResponseData['content_type'], headers=headers)
     else:
         cacheResponseData['cacheHit'] = False
-   # mispFalsePositive = feeds.getFalsePositiveData(dataType, dataAge, app.configCore)
+
     mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
-    if (not (mispResponse['status']) and (mispResponse['error_num'] == 1)):
-        raise HTTPException( status_code=HTTP_403_FORBIDDEN, detail=mispResponse['error'] + ' - ' + str(mispResponse['status_code']) )      
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 2)):
-        raise HTTPException( status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=mispResponse['error'] )  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 3)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )    
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 4)):
-        raise HTTPException( status_code=HTTP_504_GATEWAY_TIMEOUT , detail=mispResponse['error'] )   
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 5)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )                  
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 6)):
-        raise HTTPException( status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE , detail=mispResponse['error'] )              
-    elif (not (mispResponse['status']) and (mispResponse['error_num'] == 10)):
-        raise HTTPException( status_code=HTTP_503_SERVICE_UNAVAILABLE , detail=mispResponse['error'] )                     
-    else:    
-        mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
-        headers = {"X-Cache": "MISS"}
-        return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
+    headers = {"X-Cache": "MISS"}
+    return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)

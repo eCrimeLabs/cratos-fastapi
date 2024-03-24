@@ -9,7 +9,7 @@ LOGPATH="log_conf.yaml"     # Configuration file for univorn related to logging
 
 # ONLY Uncomment one of the below.
 # Uncomment below if you would like additional logging besides nginx
-#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --proxy-headers --log-config=${LOGPATH}
+#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --no-server-header --proxy-headers --forwarded-allow-ips='*' --log-config=${LOGPATH}
 
 # Uncomment below if you feel that no need to log from the application itself
-#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --proxy-headers
+#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --no-server-header --proxy-headers --forwarded-allow-ips='*'
