@@ -9,6 +9,11 @@ from dicttoxml import dicttoxml
 
 
 def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
+    """ The following function defines the search parameters for the MISP search.
+    :param feed: The feed to be searched
+    :param requestData: The data to be searched for
+    :return: Dict of data with the search parameters.
+    """
     definedMISPSearch = {}
     tags = []
     if (feed == 'falsepositive'):
@@ -139,6 +144,14 @@ def formatWarninglistOutputData(inputBlob: dict, outputType: str) -> dict:
 
 
 def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachingTime: int, cachingKey: str) -> dict:
+    """ The following function formats the output data from the MISP instance, into supported output types.
+    :param inputBlob: The input data to be formatted
+    :param outputType: The output type to be formatted
+    :param dataType: The data type to be formatted
+    :param cachingTime: The time to cache the data
+    :param cachingKey: The key to cache the data
+    :return: Dict of data with the results.
+    """
     returnValue = {}
     contentType = {
         'xml': 'text/xml',
@@ -194,10 +207,15 @@ def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachin
 
 
 def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
+    """ The following function parses the MISP data and returns a list of the data, including some data validation on the list content.
+    :param mispObject: The MISP object to be parsed containing the data from the MISP instance
+    :param dataType: The data type to be parsed
+    :return: List of data with the results.
+    """
     rexDict = {
         'ipv4': r'(\b(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\b)',
         'cidr4': r'(\b(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\/([0-9]|[1-2][0-9]|3[0-2]))\b)',
-        'ipv6': '', # THIS WILL BE MATCHED ELSEWHERE, Due to complexity'
+        'ipv6': '', # THIS WILL BE MATCHED ELSEWHERE, Due to complexity of ipv6 addresses'
         'domain': r'(\b((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}\b)',
         'hostname': r'(\b((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}\b)',
         'url': r'^(\w+:(\/?\/?)[^\s]+|[^\s]+)$',
@@ -296,6 +314,14 @@ def getFalsePositiveData(type: str, age: str, configData: dict) -> dict:
 
 
 def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict) -> dict:
+    """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=feed
+    :param feed: The feed to be searched
+    :param type: The attribute type defined in the query
+    :param age: The age defined in the query
+    :param output: The output format of the data
+    :param configData: The config containing data on how to connect to the MISP instance
+    :return: Dict of data with the results.    
+    """
     requestResponse = {}
     requestData = {}
     requestData['mispURL'] = ("{0}://{1}:{2}".format(configData['requestConfig']['apiTokenProto'], configData['requestConfig']['apiTokenFQDN'], configData['requestConfig']['apiTokenPort']))

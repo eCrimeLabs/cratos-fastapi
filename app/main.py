@@ -146,11 +146,17 @@ async def homepage():
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
+    """
+    This is the favicon.ico file that is used in the browser.
+    """
     return FileResponse(favicon_path)
 
 @app.get("/v1/status", tags=["status"], summary="Used for monitoring Cratos FastAPI and memcached integration avaliability.")
 async def pong():
-    """ The following route can be used to continually monitor the service is running """
+    """ The following route can be used to continually monitor the service is running 
+    :param apiKey: apiKey to authenticate the request
+    :return: JSON output of the status of the service
+    """
     memcachedStatus = ""
     if dependencies.memcacheCheckReadWrite():
         memcachedStatus = "OK"
@@ -180,6 +186,10 @@ def form_post_form(request: Request, expire: str = Form(...), port: str = Form(.
 def form_post_json(
     item: models.formAuthGenItem
     ):
+    """ Generate a token based on the input from the form
+    :param item: The input from the form
+    :return: JSON output of the token
+    """
     authKeyToken = {}
     inputData = str(item.proto) + ";" + str(item.port) + ";" + str(item.domain) + ";" + str(item.auth) + ";" + str(item.expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
@@ -193,6 +203,10 @@ async def get_open_api_endpoint():
     response = JSONResponse(
         get_openapi(title="CRATOS - FastAPI proxy", version=CRATOS_VERSION, routes=app.routes)
     )
+    """ The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
+    :param apiKey: apiKey to authenticate the request (Optional)
+    :return: JSON output of the OpenAPI specification
+    """
     return response
 
 

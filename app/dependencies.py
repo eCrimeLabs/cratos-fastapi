@@ -395,7 +395,7 @@ def memcacheDeleteData(dataKey: str) -> bool:
 
 
 def memcacheFlushAllData() -> bool:
-    """ Deletes all cached data in the memcache
+    """ Deletes all cached data in the memcached database
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:

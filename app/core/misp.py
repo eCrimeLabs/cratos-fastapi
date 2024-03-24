@@ -110,6 +110,10 @@ def mispGETRequest(url: str, headers: dict, timeout: int, verify: bool) -> dict:
         return(requestResponse) 
 
 def mispRequestHeader(mispAuthKey):
+    """ Generate the MISP request header 
+    :param mispAuthKey: The authentication key to the MISP instance
+    return: dict: Returns a dict with the header for the MISP request
+    """
     mispHeader = {
         'Content-type': 'application/json',
         'Accept': 'application/json',
@@ -119,6 +123,11 @@ def mispRequestHeader(mispAuthKey):
 
 
 def mispGetVersion(mispURL: str, mispAuthKey: str) -> dict:
+    """ Get the MISP version and return the response 
+    :param mispURL: The URL to the MISP instance
+    :param mispAuthKey: The authentication key to the MISP instance
+    return: dict: Returns a dict with the response from the MISP instance
+    """
     utcNow = datetime.utcnow()
     unixtimestamp = int(utcNow.timestamp())
     headers=mispRequestHeader(mispAuthKey)
