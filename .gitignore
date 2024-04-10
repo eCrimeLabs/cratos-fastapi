@@ -159,3 +159,7 @@ sites/*.json
 sites/*.yaml
 config/config.json
 config/config.yaml
+test.token
+error_log.txt
+assets/style.css
+report.html

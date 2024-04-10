@@ -254,6 +254,19 @@ Feel free to fork the code, play with it, make some patches and send us the pull
 
 Feel free to contact us, create [issues](https://github.com/eCrimeLabs/cratos-fastapi/issues), if you have questions, remarks or bug reports.
 
+# Unit testing 
+If commiting code to this project please ensure to run a unit test prior, to identify potential errors 
+
+*Standard Test*
+
+```
+pytest tests/unit/test_api.py
+```
+
+*Standard Test with HTML report*
+```
+pytest tests/unit/test_api.py --html=report.html
+```
 # License
 
 This software is licensed under [MIT](https://github.com/eCrimeLabs/cratos-fastapi/blob/main/LICENSE)

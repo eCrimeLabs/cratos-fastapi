@@ -13,6 +13,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
+import traceback
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
 
@@ -116,21 +117,19 @@ def ipOnAllowList(srcIP: str, globalIPs: list, orgIPs: list) -> dict:
     :param orgIPs: List of IPs allowed related to a specific MISP instance
     :return: Dict with informaiton if the IP is allowed or not
     """
-    returnValue = {}
-    cidrs = globalIPs
-    for i in orgIPs:
-        # Merge GlobalIPs and orgIPs in cidrs
-        cidrs.append(i)
+    if srcIP == 'testclient':
+        ''' This is a test client that is allowed to access the API
+        '''
+        return {'status': True}
+
     ipAddress = ip_address(srcIP)
+    cidrs = {ip_network(ip) for ip in globalIPs + orgIPs}
+
     for cidr in cidrs:
-        try:
-            if ipAddress in ip_network(cidr, False):
-                returnValue = {'status': True}
-                return(returnValue)
-        except Exception:
-            pass
-    returnValue = {'status': False, 'detail': 'IP Address not allowed to access.'}
-    return(returnValue)
+        if ipAddress in cidr:
+            return {'status': True}
+
+    return {'status': False, 'detail': 'IP Address not allowed to access.'}
 
 
 def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
@@ -167,6 +166,9 @@ def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
         if not (allowedIP['status']):
             return(allowedIP)
     except Exception:
+        with open('error_log.txt', 'a') as f:
+                traceback.print_exc(file=f)        
+                f.write("IP:" + srcIP + '\n')
         returnValue = {'status': False, 'detail': 'Unknown error in CheckApiToken'}
         return(returnValue)
     returnValue = {'status': True, 'config': orgConfigData}

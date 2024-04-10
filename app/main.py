@@ -15,7 +15,7 @@ from typing import Union
 from typing_extensions import Annotated
 from datetime import date, datetime, timezone
 
-from pydantic import BaseModel, Field 
+from pydantic import BaseModel, Field, create_model
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_500_INTERNAL_SERVER_ERROR
 from starlette.responses import RedirectResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -195,7 +195,7 @@ def form_post_json(
     authKeyToken = {}
     inputData = str(item.proto) + ";" + str(item.port) + ";" + str(item.domain) + ";" + str(item.auth) + ";" + str(item.expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
-    authKeyToken['MISP'] = str(item.proto) + '//' + str(item.domain) + ':' + str(item.port) + '/'
+    authKeyToken['MISP'] = str(item.proto) + '://' + str(item.domain) + ':' + str(item.port) + '/'
     authKeyToken['validity'] = str(item.expire)
     authKeyToken['token'] = result['detail']
     return authKeyToken
