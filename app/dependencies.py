@@ -123,7 +123,7 @@ def ipOnAllowList(srcIP: str, globalIPs: list, orgIPs: list) -> dict:
         return {'status': True}
 
     ipAddress = ip_address(srcIP)
-    cidrs = {ip_network(ip) for ip in globalIPs + orgIPs}
+    cidrs = {ip_network(ip,False) for ip in globalIPs + orgIPs}
 
     for cidr in cidrs:
         if ipAddress in cidr:
