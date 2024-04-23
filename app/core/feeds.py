@@ -31,6 +31,7 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     definedMISPSearch['type'] = requestData['dataTypes']
     definedMISPSearch['withAttachments'] = False
     definedMISPSearch['published'] = True
+    definedMISPSearch['org'] = ""
     if (feed == 'incident' or feed == 'alert' or feed == 'hunt'):
         definedMISPSearch['published'] = False
     elif (feed == '42'):
@@ -42,6 +43,26 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
         pass
     return (definedMISPSearch)
 
+def organizationDefineMISPSearch(uuid: str, requestData: dict) -> dict:
+    """ The following function defines the search parameters for the MISP search.
+    :param uuid: The organization data to be searched
+    :param requestData: The data to be searched for
+    :return: Dict of data with the search parameters.
+    """
+    tags = []
+    tags.append(requestData['tagNames'].get('falsepositive'))
+    definedMISPSearch = {}
+    definedMISPSearch['tags'] = tags
+    definedMISPSearch['to_ids'] = True
+    definedMISPSearch['timestamp'] = requestData['timestamp']
+    definedMISPSearch['returnFormat'] = 'json'
+    definedMISPSearch['includeEventTags'] = 'yes'
+    definedMISPSearch['enforceWarninglist'] = True
+    definedMISPSearch['type'] = requestData['dataTypes']
+    definedMISPSearch['withAttachments'] = False
+    definedMISPSearch['published'] = True
+    definedMISPSearch['org'] = uuid
+    return (definedMISPSearch)
 
 def getFeedNameToTag(prependTag: str, customFeeds: dict) -> dict:
     feedToTagDict = {'falsepositive': '!' + prependTag + ':incident-classification=false-positive'}
@@ -333,5 +354,29 @@ def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict
     requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
     requestData['dataTypes'] = configData['types'].get(type)
     requestData['body'] = feedDefineMISPSearch(feed, requestData)
+    requestResponse = misp.mispSearchAttributesSimpel(requestData)
+    return (requestResponse)
+
+
+def get_organization_data(uuid: str, type: str, age: str, output: str, configData: dict) -> dict:
+    """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=feed
+    :param uuid: The organization data to be searched
+    :param type: The attribute type defined in the query
+    :param age: The age defined in the query
+    :param output: The output format of the data
+    :param configData: The config containing data on how to connect to the MISP instance
+    :return: Dict of data with the results.    
+    """
+    requestResponse = {}
+    requestData = {}
+    requestData['mispURL'] = ("{0}://{1}:{2}".format(configData['requestConfig']['apiTokenProto'], configData['requestConfig']['apiTokenFQDN'], configData['requestConfig']['apiTokenPort']))
+    requestData['mispAuthKey'] = configData['requestConfig']['apiTokenAuthKey']
+    requestData['timestamp'] = dependencies.generateUnixTimeStamp( age )
+    requestData['tagNames'] = getFeedNameToTag(configData['requestConfig']['config']['tag'], configData['requestConfig']['config']['custom_feeds'])
+    requestData['mispVerifyCert'] = configData['requestConfig']['config']['mispVerifyCert']
+    requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
+    requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
+    requestData['dataTypes'] = configData['types'].get(type)
+    requestData['body'] = organizationDefineMISPSearch(uuid, requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)

@@ -257,6 +257,9 @@ Feel free to contact us, create [issues](https://github.com/eCrimeLabs/cratos-fa
 # Unit testing 
 If commiting code to this project please ensure to run a unit test prior, to identify potential errors 
 
+Pre-requisit
+copy the file "test.token.example" to "test.token" and insert a valid API token.
+
 *Standard Test*
 
 ```

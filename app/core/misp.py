@@ -31,6 +31,7 @@ def mispSearchAttributesSimpel(requestData: dict) -> dict:
             enforceWarninglist=body['enforceWarninglist'],
             to_ids=body['to_ids'],
             published=body['published'],
+            org=body['org'],
             metadata=True, 
             pythonify=True
         )

@@ -99,7 +99,7 @@ async def getApiToken(
             status_code=HTTP_403_FORBIDDEN, detail=returnValue['detail']
         )
     raise HTTPException(
-        status_code=HTTP_403_FORBIDDEN, detail="Could not validate token or not set"
+        status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
     )
 
 @app.on_event("startup")
@@ -341,7 +341,7 @@ async def get_feeds_data(
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
-    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 0,
+    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
     """ Get content of MISP warninglists or list avaliable MISP warninglists
@@ -371,6 +371,53 @@ async def get_feeds_data(
         else:
             raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
 
+    # deepcode ignore reDOS: The mitigation for this is located in the models
+    mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
+    headers = {"X-Cache": "MISS"}
+    return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)
+
+
+@app.get("/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
+         tags=["feed"], 
+         summary="Retrieve data from MISP composed into a simple return format, only related a specific Organization UUID.",
+         description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
+)
+async def get_organizaiton_data(
+    orgUUID: Annotated[str | None, Path(min_length=36, max_length=36, description="MISP Organization UUID", pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')],
+    dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
+    dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
+    returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
+    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
+    api_key: APIKey = Depends(getApiToken)
+    ):
+    """ Get content of MISP warninglists or list avaliable MISP warninglists
+    :param uuid: Will extract data from the MISP instance related to the organization UUID
+    :param dataType: The type of data type(s) that the feed should be mapped to
+    :param age: The defined age options, on how old an attribute may be
+    :param returnedDataType: The output format to deliver the returned data in.
+    :param cache: OPTIONAL value used in query of seconds to store the data in memcache 
+    :param api_key: The authorization token
+    :return: Returns data based upon the above parameters in the format specified in returnedDataType
+    """
+    cachingKeyData = dependencies.md5HashCacheKey(orgUUID + dataType + dataAge + returnedDataType + api_key)
+
+    cacheResponseData = dependencies.memcacheGetData(cachingKeyData, returnedDataType)
+    if (cacheResponseData['cacheHit']):
+        headers = {"X-Cache": "HIT"}
+        return Response(content=cacheResponseData['content'], media_type=cacheResponseData['content_type'], headers=headers)
+    else:
+        cacheResponseData['cacheHit'] = False
+
+    mispResponse = feeds.get_organization_data(orgUUID, dataType, dataAge, returnedDataType, app.configCore)
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    # deepcode ignore reDOS: The mitigation for this is located in the models
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
     headers = {"X-Cache": "MISS"}
     return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)

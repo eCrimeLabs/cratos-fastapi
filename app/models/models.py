@@ -89,6 +89,15 @@ class ModuleOutputAge(str, Enum):
     fourYears = "4y"
     tenYears = "10y"
 
+#class ModelUUID(BaseModel):
+#    test: constr = Field(min_length=36, max_length=36)
+
+#    @validator('uuid')
+#    def validateUUIDFormat(cls, uuid):
+#        if not re.match(r'^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$', str(uuid)):
+#            raise ValueError('UUID is not in the correct format')
+#        return uuid           
+
 class formAuthGenItem(BaseModel):
     port: int = Field(gt=0, lte=65535, default='443')
     proto: str = Field(default='https')

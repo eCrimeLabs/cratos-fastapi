@@ -129,7 +129,7 @@ def ipOnAllowList(srcIP: str, globalIPs: list, orgIPs: list) -> dict:
         if ipAddress in cidr:
             return {'status': True}
 
-    return {'status': False, 'detail': 'IP Address not allowed to access.'}
+    return {'status': False, 'detail': srcIP + ' are not allowed to access the MISP instance.'}
 
 
 def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
