@@ -22,5 +22,5 @@ email-validator
 python-binary-memcached
 yamale
 defusedxml
-urllib3>=1.26.18
+urllib3>=2.2.2
 werkzeug>=3.0.1
