@@ -5,7 +5,7 @@ import json
 import yaml
 import time
 from defusedxml import ElementTree as DefusedET
-from app.models.models import ModelDataType, ModelFeedName, ModelOutputType
+from app.models.models import ModelDataType, ModelFeedName, ModelOutputType, ModelVendorName
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 import random
@@ -129,3 +129,19 @@ def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
                     DefusedET.fromstring(content)
                 except DefusedET.ParseError:
                     pytest.fail("Invalid XML")
+
+
+@pytest.mark.parametrize("vendorName,feedName,dataType,dataAge", product([e.value for e in ModelVendorName], [e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE))
+def test_get_feeds_data(vendorName, feedName, dataType, dataAge):
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        
+        futures = [executor.submit(client.get, f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", headers=TOKEN_HEADER)]
+        
+        for future in futures:
+            start_time = time.time()
+            response = future.result()
+            content = response.content
+            end_time = time.time()
+            print(f"Request and response time: {end_time - start_time} seconds")
+            print(f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
+            assert response.status_code == 200
