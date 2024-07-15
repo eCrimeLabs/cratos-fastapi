@@ -344,7 +344,7 @@ async def get_feeds_data(
     cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Get content of MISP warninglists or list avaliable MISP warninglists
+    """ Get content of MISP based on various data, with or without tags and based on time
     :param feedName: The predefined feed types that is mapping to a local MISP tag
     :param dataType: The type of data type(s) that the feed should be mapped to
     :param age: The defined age options, on how old an attribute may be
