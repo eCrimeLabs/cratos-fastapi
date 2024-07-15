@@ -23,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 # Sub elements
-from app.core import feeds, misp
+from app.core import feeds, misp, vendors
 from app.config import GLOBALCONFIG
 from app import dependencies
 from app.models import models
@@ -375,6 +375,60 @@ async def get_feeds_data(
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
     headers = {"X-Cache": "MISS"}
     return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)
+
+
+@app.get("/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", 
+         tags=["vendors"], 
+         summary="Retrieve data from MISP composed into a simple return format",
+         description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
+)
+async def get_vendor_data(
+    vendorName: Annotated[models.ModelVendorName, Path(description="The vendor name will return the output in a specific vendor based format.")],
+    feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
+    dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
+    dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
+    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
+    api_key: APIKey = Depends(getApiToken)
+    ):
+    """ Get content of MISP based on various data, with or without tags and based on time
+    :param vendorName: The vendor name will return the output in a specific vendor based format
+    :param feedName: The predefined feed types that is mapping to a local MISP tag
+    :param dataType: The type of data type(s) that the feed should be mapped to
+    :param age: The defined age options, on how old an attribute may be
+    :param cache: OPTIONAL value used in query of seconds to store the data in memcache 
+    :param api_key: The authorization token
+    :return: Returns data based upon the above parameters in the format specified in returnedDataType
+    """
+    cachingKeyData = dependencies.md5HashCacheKey(vendorName + feedName + dataType + dataAge + api_key)
+
+    cacheResponseData = dependencies.memcacheGetData(cachingKeyData, 'txt')
+    if (cacheResponseData['cacheHit']):
+        headers = {"X-Cache": "HIT"}
+        return Response(content=cacheResponseData['content'], media_type=cacheResponseData['content_type'], headers=headers)
+    else:
+        cacheResponseData['cacheHit'] = False
+
+    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, "txt", app.configCore)
+
+    if not mispResponse['status']:
+        error_num = mispResponse['error_num']
+        if error_num in error_mapping:
+            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+        else:
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+
+    if (vendorName == "paloalto"):
+        # deepcode ignore reDOS: The mitigation for this is located in the models
+        mispParsedData = vendors.formatPaloaltoOutputData(mispResponse, dataType, cache, cachingKeyData)
+    elif (vendorName == "cisco"):
+        # deepcode ignore reDOS: The mitigation for this is located in the models
+        mispParsedData = vendors.formatCiscoOutputData(mispResponse, dataType, cache, cachingKeyData)
+    else:
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Vendor not avaliable")
+
+    headers = {"X-Cache": "MISS"}
+    return Response(content=mispParsedData['content'], media_type=mispParsedData['content_type'], headers=headers)
+
 
 
 @app.get("/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
