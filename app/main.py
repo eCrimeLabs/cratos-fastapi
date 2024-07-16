@@ -14,12 +14,14 @@ from fastapi.encoders import jsonable_encoder
 from typing import Union
 from typing_extensions import Annotated
 from datetime import date, datetime, timezone
+import asyncio
 
 from pydantic import BaseModel, Field, create_model
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_500_INTERNAL_SERVER_ERROR
 from starlette.responses import RedirectResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 # Sub elements
@@ -160,7 +162,7 @@ async def pong():
     :return: JSON output of the status of the service
     """
     memcachedStatus = ""
-    if dependencies.memcacheCheckReadWrite():
+    if await run_in_threadpool(dependencies.memcacheCheckReadWrite):
         memcachedStatus = "OK"
     else:
         memcachedStatus = "FAIL"
@@ -179,6 +181,7 @@ def form_post(request: Request):
 def form_post_form(request: Request, expire: str = Form(...), port: str = Form(...), proto: str = Form(...), domain: str = Form(...),  auth: str = Form(...)):
     inputData = str(proto) + ";" + str(port) + ";" + str(domain) + ";" + str(auth) + ";" + str(expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
+
     reultLen = str(len(result['detail']))
     return templates.TemplateResponse('generate_token_form.html', context={'request': request, 'result': result['detail'], 'reultLen': reultLen})
 
@@ -233,7 +236,8 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
     mispResponse = {}
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-    mispResponse = misp.mispGetVersion(mispURL, mispAuthKey)
+#    mispResponse = misp.mispGetVersion(mispURL, mispAuthKey)
+    mispResponse = await run_in_threadpool(misp.mispGetVersion, mispURL, mispAuthKey)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
@@ -258,7 +262,8 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
     mispResponse = {}
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-    mispResponse = misp.mispGetStatistics(mispURL, mispAuthKey)
+#    mispResponse = misp.mispGetStatistics(mispURL, mispAuthKey)
+    mispResponse = await run_in_threadpool(misp.mispGetStatistics, mispURL, mispAuthKey)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
@@ -292,7 +297,8 @@ async def get_misp_warninglist(
     mispResponse = {}
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-    mispResponse = misp.mispGetWarninglists(mispURL, mispAuthKey, warninglistId)
+    #mispResponse = misp.mispGetWarninglists(mispURL, mispAuthKey, warninglistId)
+    mispResponse = await run_in_threadpool(misp.mispGetWarninglists, mispURL, mispAuthKey, warninglistId)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
@@ -362,7 +368,8 @@ async def get_feeds_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
+#    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
+    mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, app.configCore)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
@@ -408,7 +415,8 @@ async def get_vendor_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, "txt", app.configCore)
+#    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, "txt", app.configCore)
+    mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, "txt", app.configCore)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
@@ -462,7 +470,7 @@ async def get_organizaiton_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-    mispResponse = feeds.get_organization_data(orgUUID, dataType, dataAge, returnedDataType, app.configCore)
+    mispResponse = await run_in_threadpool(feeds.get_organization_data, orgUUID, dataType, dataAge, returnedDataType, app.configCore)
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
