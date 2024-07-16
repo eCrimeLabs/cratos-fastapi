@@ -162,7 +162,7 @@ async def pong():
     :return: JSON output of the status of the service
     """
     memcachedStatus = ""
-    if await run_in_threadpool(dependencies.memcacheCheckReadWrite):
+    if dependencies.memcacheCheckReadWrite():
         memcachedStatus = "OK"
     else:
         memcachedStatus = "FAIL"
