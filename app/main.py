@@ -9,7 +9,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi_versioning import VersionedFastAPI, version
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from typing import Union
 from typing_extensions import Annotated
@@ -265,6 +265,7 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
 #    mispResponse = misp.mispGetStatistics(mispURL, mispAuthKey)
     mispResponse = await run_in_threadpool(misp.mispGetStatistics, mispURL, mispAuthKey)
 
+
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
         if error_num in error_mapping:
@@ -289,7 +290,7 @@ async def get_misp_warninglist(
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Get content of MISP warninglists or list avaliable MISP warninglists
+    """ \r\nGet content of MISP warninglists or list avaliable MISP warninglists
     :param warninglistId: ID number of warninglist
     :param returnedDataType: What format does the data have to be returned in
     :return: Contant of warninglist of avaliable warninglists in the choosen output format
@@ -309,6 +310,35 @@ async def get_misp_warninglist(
 
     warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)    
     return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
+
+
+@app.get("/v1/feedmapping", 
+         tags=["info"], 
+         summary="Get the mapping of the feeds to the tags in MISP.",
+         response_class=PlainTextResponse
+         )
+async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
+    """ Gather the mapping of the feeds to the tags in MISP
+    :param apiKey: apiKey to authenticate the request
+    :return: text output of the mapping between the Cratos FastAPI feeds and the MISP tags
+    """       
+    appConfig = app.configCore
+    feedsDict = appConfig['requestConfig']['config']['custom_feeds']
+    tagStr = appConfig['requestConfig']['config']['tag']
+    standardFeedsDict = {
+        "incident": ":incident-classification=incident",
+        "block": ":incident-classifition=block",
+        "alert": ":incident-classification=alert",
+        "hunt": ":incident-classification=hunt"
+    }
+    standardFeedsDict.update(feedsDict)
+    feedMapping = ""
+    for feeds in standardFeedsDict:
+        feedMapping += ("Feed name: \"" + feeds + "\" is mapped to MISP tag: " + tagStr + standardFeedsDict[feeds] + "\r\n")
+
+    return feedMapping
+
+
 
 @app.delete("/v1/clear_cache/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
          tags=["feed"], 
@@ -369,7 +399,11 @@ async def get_feeds_data(
         cacheResponseData['cacheHit'] = False
 
 #    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
-    mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, app.configCore)
+    try:
+        mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, app.configCore)
+    except Exception as e:
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Thread error")
+
 
     if not mispResponse['status']:
         error_num = mispResponse['error_num']
