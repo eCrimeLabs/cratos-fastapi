@@ -157,8 +157,13 @@ async def favicon():
 
 @app.get("/v1/status", tags=["status"], summary="Used for monitoring Cratos FastAPI and memcached integration avaliability.")
 async def pong():
-    """ The following route can be used to continually monitor the service is running 
+    """ 
+    The following route can be used to continually monitor the service is running 
+
+    ---
+
     :param apiKey: apiKey to authenticate the request
+    
     :return: JSON output of the status of the service
     """
     memcachedStatus = ""
@@ -191,8 +196,13 @@ def form_post_form(request: Request, expire: str = Form(...), port: str = Form(.
 def form_post_json(
     item: models.formAuthGenItem
     ):
-    """ Generate a token based on the input from the form
+    """ 
+    Generate a token based on the input from the form
+
+    ---
+
     :param item: The input from the form
+    
     :return: JSON output of the token
     """
     authKeyToken = {}
@@ -208,17 +218,27 @@ async def get_open_api_endpoint():
     response = JSONResponse(
         get_openapi(title="CRATOS - FastAPI proxy", version=CRATOS_VERSION, routes=app.routes)
     )
-    """ The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
+    """ 
+    The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
+
+    ---
+
     :param apiKey: apiKey to authenticate the request (Optional)
+    
     :return: JSON output of the OpenAPI specification
     """
     return response
 
 
-@app.get("/v1/help", tags=["documentations"])
+@app.get("/v1/help", 
+         tags=["documentations"]
+         )
 async def get_documentation():
-    """ The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
-    :param apiKey: apiKey to authenticate the request
+    """ 
+    The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
+
+    ---
+
     :return: WebUI for documentation and tests    
     """
     response = get_swagger_ui_html(
@@ -227,10 +247,17 @@ async def get_documentation():
     )
     return response
 
-@app.get("/v1/check", tags=["status"], summary="Check connection to MISP")
+@app.get("/v1/check", 
+         tags=["status"]
+         )
 async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
-    """ Check the connection status to the MISP instance
+    """ 
+    Check the connection status to the MISP instance
+
+    ---
+
     :param apiKey: apiKey to authenticate the request
+    
     :return: JSON output of the minor information on the MISP instance such as version and pyMISP version
     """       
     mispResponse = {}
@@ -251,13 +278,15 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
 
 @app.get("/v1/statistics", 
          tags=["info"], 
-         summary="Get attribute type statistics from the MISP", 
-         description="Connects to the MISP instance and returns statistics API and outputs count of attribute types in a JSON format"
+         summary="Get attribute type statistics from the MISP"
 )
 async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
-    """ Get statistical data from the MISP instance, related to the attribute types.
-    :param apiKey: apiKey to authenticate the request
-    :return: JSON output of the statictics
+    """ 
+    Get statistical data from the MISP instance, related to the numbers based on attribute types.
+
+    ---
+
+    :return: JSON output with the statictic data.
     """    
     mispResponse = {}
     mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
@@ -278,11 +307,7 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
 
 @app.get("/v1/warninglist/id/{warninglistId}/output/{returnedDataType}", 
          tags=["info"], 
-         summary="Get lists and content of Warning lists from MISP",
-         description="""<b>Connects to the MISP instance for collecting information around Warninglists</b><br><br>
-         id 0 returns a list of avaliable warninglists and content around this,
-         choosing an id higher than 0 has to be aligned with the MISP warninglist ID.
-         """
+         summary="Get lists and content of Warning lists from MISP"
 )
 async def get_misp_warninglist(
     *,
@@ -290,9 +315,17 @@ async def get_misp_warninglist(
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ \r\nGet content of MISP warninglists or list avaliable MISP warninglists
+    """
+    **Connects to the MISP instance for collecting information around Warninglists**
+    
+    Setting "warninglistId" to "0" returns a list of avaliable warninglists and content around this, choosing an id higher than 0 has to be aligned with the MISP warninglist ID.
+ 
+    ---
+
     :param warninglistId: ID number of warninglist
+
     :param returnedDataType: What format does the data have to be returned in
+
     :return: Contant of warninglist of avaliable warninglists in the choosen output format
     """
     mispResponse = {}
@@ -314,12 +347,15 @@ async def get_misp_warninglist(
 
 @app.get("/v1/feedmapping", 
          tags=["info"], 
-         summary="Get the mapping of the feeds to the tags in MISP.",
+         summary="Get the mapping of the Cratos feeds to the tags in MISP.",
          response_class=PlainTextResponse
          )
 async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
-    """ Gather the mapping of the feeds to the tags in MISP
-    :param apiKey: apiKey to authenticate the request
+    """ 
+    This will display the mapping between the Cratos feeds and to the tags in MISP
+
+    ---
+    
     :return: text output of the mapping between the Cratos FastAPI feeds and the MISP tags
     """       
     appConfig = app.configCore
@@ -342,8 +378,7 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
 
 @app.delete("/v1/clear_cache/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
          tags=["feed"], 
-         summary="Delete cached data related to specific feed",
-         description="This deletes the cached data related to specific feed options and Auth Token."
+         summary="Delete cached data related to specific feed"
 )
 async def delete_cached_feeds_data(
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
@@ -352,12 +387,19 @@ async def delete_cached_feeds_data(
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Delete any cached data related to the a specific feed request.
+    """ 
+    Deletes the cached data related to specific feed options and Auth Token.
+
+    ---
+
     :param feedName: The predefined feed types that is mapping to a local MISP tag
+
     :param dataType: The type of data type(s) that the feed should be mapped to
+
     :param age: The defined age options, on how old an attribute may be
+
     :param returnedDataType: The output format to deliver the returned data in.
-    :param api_key: The authorization token
+    
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
     cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
@@ -369,8 +411,7 @@ async def delete_cached_feeds_data(
 
 @app.get("/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
          tags=["feed"], 
-         summary="Retrieve data from MISP composed into a simple return format",
-         description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
+         summary="Gather data from MISP typically based on tags and return in structured formats."
 )
 async def get_feeds_data(
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
@@ -380,13 +421,21 @@ async def get_feeds_data(
     cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Get content of MISP based on various data, with or without tags and based on time
+    """ 
+    Collect data from MISP, normalize and ensure only unique attributes are returned, typically based on MISP tags.
+
+    ---
+
     :param feedName: The predefined feed types that is mapping to a local MISP tag
+    
     :param dataType: The type of data type(s) that the feed should be mapped to
+    
     :param age: The defined age options, on how old an attribute may be
+    
     :param returnedDataType: The output format to deliver the returned data in.
+    
     :param cache: OPTIONAL value used in query of seconds to store the data in memcache 
-    :param api_key: The authorization token
+    
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
     cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
@@ -420,8 +469,7 @@ async def get_feeds_data(
 
 @app.get("/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", 
          tags=["vendors"], 
-         summary="Retrieve data from MISP composed into a simple return format",
-         description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
+         summary="Returns the feed data from MISP in a structured format for a specific vendors.",
 )
 async def get_vendor_data(
     vendorName: Annotated[models.ModelVendorName, Path(description="The vendor name will return the output in a specific vendor based format.")],
@@ -431,13 +479,21 @@ async def get_vendor_data(
     cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Get content of MISP based on various data, with or without tags and based on time
+    """ 
+    Collect data from MISP, normalize and ensure only unique attributes are returned, in a predefined format for a particular vendor requiring custom output.
+
+    ---
+
     :param vendorName: The vendor name will return the output in a specific vendor based format
+    
     :param feedName: The predefined feed types that is mapping to a local MISP tag
+    
     :param dataType: The type of data type(s) that the feed should be mapped to
+    
     :param age: The defined age options, on how old an attribute may be
+    
     :param cache: OPTIONAL value used in query of seconds to store the data in memcache 
-    :param api_key: The authorization token
+    
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
     cachingKeyData = dependencies.md5HashCacheKey(vendorName + feedName + dataType + dataAge + api_key)
@@ -475,8 +531,7 @@ async def get_vendor_data(
 
 @app.get("/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
          tags=["feed"], 
-         summary="Retrieve data from MISP composed into a simple return format, only related a specific Organization UUID.",
-         description="This is the core feature of Cratos to collect data from MISP, normalize and ensure only unique attributes are returned."
+         summary="Get data related to MISP Organization UUID."
 )
 async def get_organizaiton_data(
     orgUUID: Annotated[str | None, Path(min_length=36, max_length=36, description="MISP Organization UUID", pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')],
@@ -486,13 +541,21 @@ async def get_organizaiton_data(
     cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
-    """ Get content of MISP warninglists or list avaliable MISP warninglists
+    """ 
+    Retrieve data from MISP composed into a simple return format, only related a specific Organization UUID.
+    
+    ---
+
     :param uuid: Will extract data from the MISP instance related to the organization UUID
+    
     :param dataType: The type of data type(s) that the feed should be mapped to
+    
     :param age: The defined age options, on how old an attribute may be
+    
     :param returnedDataType: The output format to deliver the returned data in.
+    
     :param cache: OPTIONAL value used in query of seconds to store the data in memcache 
-    :param api_key: The authorization token
+    
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
     cachingKeyData = dependencies.md5HashCacheKey(orgUUID + dataType + dataAge + returnedDataType + api_key)
