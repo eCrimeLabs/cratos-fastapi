@@ -13,7 +13,7 @@ Using the CRATOS API it also ensures that indicators are sharable but you will n
 The below is just inspiration and you can ingest the data where applicable.
 
 - Ingest data into your protection pipeline
-    - Filewall(s) - Active blocking
+    - Firewall(s) - Active blocking
     - Mail gateway - Active blocking
     - AV product(s) - Active blocking
     - EDR product(s) - Active blocking or Passive detection
