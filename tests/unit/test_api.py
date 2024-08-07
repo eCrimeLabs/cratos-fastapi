@@ -9,6 +9,7 @@ from app.models.models import ModelDataType, ModelFeedName, ModelOutputType, Mod
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 import random
+import pprint
 
 with open('test.token', 'r') as f:
     token = f.read().strip()
@@ -136,7 +137,7 @@ def test_get_feeds_data(vendorName, feedName, dataType, dataAge):
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         
         futures = [executor.submit(client.get, f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", headers=TOKEN_HEADER)]
-        
+        pprint.pprint(futures)
         for future in futures:
             start_time = time.time()
             response = future.result()
