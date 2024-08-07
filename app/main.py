@@ -4,6 +4,7 @@ import sys
 from sys import prefix
 from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Header, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi_versioning import VersionedFastAPI, version
@@ -75,6 +76,7 @@ app = FastAPI(
         "url": "https://spdx.org/licenses/MIT.html",
     }
 )
+security = HTTPBasic()
 app.mount("/img", StaticFiles(directory="img"), name='images')
 
 
@@ -89,8 +91,12 @@ app.salt= app.configCore['salt'].encode()
 async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
     apiKeyHeader: str = Security(apiKeyHeader),
+    credentials: HTTPBasicCredentials = Depends(security)
 ):
     api_key = apiKeyQuery or apiKeyHeader
+
+    if credentials.username == "cratos":
+        api_key = credentials.password
 
     if api_key is not None:
         returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, app.ClientIP)

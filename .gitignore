@@ -163,3 +163,4 @@ test.token
 error_log.txt
 assets/style.css
 report.html
+log_conf.yaml
