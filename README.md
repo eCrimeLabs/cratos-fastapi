@@ -13,7 +13,7 @@ Using the CRATOS API it also ensures that indicators are sharable but you will n
 The below is just inspiration and you can ingest the data where applicable.
 
 - Ingest data into your protection pipeline
-    - Filewall(s) - Active blocking
+    - Firewall(s) - Active blocking
     - Mail gateway - Active blocking
     - AV product(s) - Active blocking
     - EDR product(s) - Active blocking or Passive detection
@@ -195,7 +195,7 @@ In the [nginx.conf](/INSTALLATION/nginx.conf) be sure to modify the setup to mat
 
 Replace the current "nginx.conf" located at "/etc/nginx/nginx.conf"
 
-## Configuration and setup of supervisord 
+## Configuration and setup of supervisord (Boot type 1)
 [Supervisor](http://supervisord.org/introduction.html) is a client/server system that allows its users to monitor and control a number of processes on UNIX-like operating systems.
 
 Modify [uvicorn_start](/INSTALLATION/uvicorn_start) to fit your needs, and copy it to the root directory of the project
@@ -241,6 +241,21 @@ sudo supervisorctl status cratos
 sudo supervisorctl
 ```
 
+## Configuration and setup of Systemd (Boot type 2)
+
+systemd can automatically start Gunicorn when the system boots and restart it if it crashes, ensuring high availability. Additionally systemd provides advanced resource management features, such as CPU and memory limits, which can help prevent Gunicorn from consuming too many resources.
+
+Utilizing systemd also offers security features like sandboxing and process isolation, which can help improve the security of your Gunicorn service.
+
+**Ensure to update INSTALLATION/gunicorn.service to fit your installation path**
+
+```bash
+cp INSTALLATION/gunicorn.service /etc/systemd/system/gunicorn.service
+sudo systemctl daemon-reload
+sudo systemctl start gunicorn
+sudo systemctl enable gunicorn
+```
+
 # Everything is working
 
 If the Cratos FastAPI is running you should be able to connect to is and we recommend starting on the help page "https://cratos.yourdomain.com/v1/help"
@@ -277,7 +292,6 @@ This software is licensed under [MIT](https://github.com/eCrimeLabs/cratos-fasta
 # Todo
 
 - Support of allowing an API key to also get URL's of the MISP instance where a specific indicator exists, this should be done with a boolean when the api token is generated.
-- Implement logging within the Cratos, to replace the current Uvicorn logging.
 
 
 # Video presentation from Hack.lu 2023

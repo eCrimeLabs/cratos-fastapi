@@ -3,7 +3,8 @@
 import sys
 from sys import prefix
 from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Header, Form, Path, Query
-from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
+from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi_versioning import VersionedFastAPI, version
@@ -75,6 +76,7 @@ app = FastAPI(
         "url": "https://spdx.org/licenses/MIT.html",
     }
 )
+security = HTTPBasic()
 app.mount("/img", StaticFiles(directory="img"), name='images')
 
 
@@ -89,8 +91,12 @@ app.salt= app.configCore['salt'].encode()
 async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
     apiKeyHeader: str = Security(apiKeyHeader),
+    credentials: HTTPBasicCredentials = Depends(security)
 ):
     api_key = apiKeyQuery or apiKeyHeader
+
+    if credentials.username == "cratos":
+        api_key = credentials.password
 
     if api_key is not None:
         returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, app.ClientIP)
@@ -261,9 +267,8 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
     :return: JSON output of the minor information on the MISP instance such as version and pyMISP version
     """       
     mispResponse = {}
-    mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
+    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-#    mispResponse = misp.mispGetVersion(mispURL, mispAuthKey)
     mispResponse = await run_in_threadpool(misp.mispGetVersion, mispURL, mispAuthKey)
 
     if not mispResponse['status']:
@@ -289,9 +294,8 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
     :return: JSON output with the statictic data.
     """    
     mispResponse = {}
-    mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
+    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-#    mispResponse = misp.mispGetStatistics(mispURL, mispAuthKey)
     mispResponse = await run_in_threadpool(misp.mispGetStatistics, mispURL, mispAuthKey)
 
 
@@ -329,9 +333,8 @@ async def get_misp_warninglist(
     :return: Contant of warninglist of avaliable warninglists in the choosen output format
     """
     mispResponse = {}
-    mispURL = ("{}://{}:{}".format(app.configCore['requestConfig']['apiTokenProto'], app.configCore['requestConfig']['apiTokenFQDN'], app.configCore['requestConfig']['apiTokenPort']))
+    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
     mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
-    #mispResponse = misp.mispGetWarninglists(mispURL, mispAuthKey, warninglistId)
     mispResponse = await run_in_threadpool(misp.mispGetWarninglists, mispURL, mispAuthKey, warninglistId)
 
     if not mispResponse['status']:
@@ -447,7 +450,6 @@ async def get_feeds_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-#    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, returnedDataType, app.configCore)
     try:
         mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, app.configCore)
     except Exception as e:
@@ -505,7 +507,6 @@ async def get_vendor_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-#    mispResponse = feeds.get_feeds_data(feedName, dataType, dataAge, "txt", app.configCore)
     mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, "txt", app.configCore)
 
     if not mispResponse['status']:
