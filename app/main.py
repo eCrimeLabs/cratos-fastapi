@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
-from typing import Union
+from typing import Union, Optional
 from typing_extensions import Annotated
 from datetime import date, datetime, timezone
 import asyncio
@@ -76,7 +76,7 @@ app = FastAPI(
         "url": "https://spdx.org/licenses/MIT.html",
     }
 )
-security = HTTPBasic()
+
 app.mount("/img", StaticFiles(directory="img"), name='images')
 
 
@@ -91,12 +91,17 @@ app.salt= app.configCore['salt'].encode()
 async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
     apiKeyHeader: str = Security(apiKeyHeader),
-    credentials: HTTPBasicCredentials = Depends(security)
+    credentials: Optional[HTTPBasicCredentials] = Depends(HTTPBasic(auto_error=False))
 ):
     api_key = apiKeyQuery or apiKeyHeader
 
-    if credentials.username == "cratos":
-        api_key = credentials.password
+    if (credentials):
+        if credentials.username == "cratos":
+            api_key = credentials.password
+        else:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
+            )    
 
     if api_key is not None:
         returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, app.ClientIP)
