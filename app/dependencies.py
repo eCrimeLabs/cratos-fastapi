@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
 import traceback
+import asyncio
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
 
@@ -412,3 +413,22 @@ def memcacheFlushAllData() -> bool:
         return(False)
     except Exception:
         return(False)
+
+async def fetch_multiple_feeds_data(
+    feedName: models.ModelFeedName,
+    dataAge: models.ModuleOutputAge,
+    returnedDataType: models.ModelOutputType,
+    api_key: str
+) -> List[dict]:
+    dataTypes = [e.value for e in models.ModelDataType]
+    tasks = [
+        get_feeds_data(
+            feedName=feedName,
+            dataType=dataType,
+            dataAge=dataAge,
+            returnedDataType=returnedDataType,
+            api_key=api_key
+        ) for dataType in dataTypes
+    ]
+    responses = await asyncio.gather(*tasks)
+    return responses
