@@ -166,3 +166,4 @@ report.html
 log_conf.yaml
 example_code/example_add_to_warninglist.py
 tests/unit/test_api_external.py
+snyk-linux
