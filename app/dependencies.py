@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import json
+from typing import List
 import yaml
 import base64
 import hashlib
@@ -15,6 +16,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
 import traceback
 import asyncio
+
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
 
@@ -167,9 +169,17 @@ def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
         if not (allowedIP['status']):
             return(allowedIP)
     except Exception:
-        with open('error_log.txt', 'a') as f:
-                traceback.print_exc(file=f)        
-                f.write("IP:" + srcIP + '\n')
+        if (configCore['debug']):
+            """
+            Requires the setting debug to be set to True in the config.yaml file.
+            """
+            with open('cratos_error_log.txt', 'a') as f:
+                    f.write("---------------------------------------------\n")
+                    f.write("Timestamp:" + str(datetime.now()) + '\n')
+                    f.write("Error in CheckApiToken:" + apiToken + '\n')
+                    f.write("IP:" + srcIP + '\n')
+                    traceback.print_exc(file=f)        
+
         returnValue = {'status': False, 'detail': 'Unknown error in CheckApiToken'}
         return(returnValue)
     returnValue = {'status': True, 'config': orgConfigData}
@@ -414,21 +424,3 @@ def memcacheFlushAllData() -> bool:
     except Exception:
         return(False)
 
-async def fetch_multiple_feeds_data(
-    feedName: models.ModelFeedName,
-    dataAge: models.ModuleOutputAge,
-    returnedDataType: models.ModelOutputType,
-    api_key: str
-) -> List[dict]:
-    dataTypes = [e.value for e in models.ModelDataType]
-    tasks = [
-        get_feeds_data(
-            feedName=feedName,
-            dataType=dataType,
-            dataAge=dataAge,
-            returnedDataType=returnedDataType,
-            api_key=api_key
-        ) for dataType in dataTypes
-    ]
-    responses = await asyncio.gather(*tasks)
-    return responses
