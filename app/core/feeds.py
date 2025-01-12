@@ -23,12 +23,20 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
         if (requestData['tagNames'].get(feed)):
             tags.append(requestData['tagNames'].get(feed))
     definedMISPSearch['tags'] = tags
-    definedMISPSearch['to_ids'] = True
+    definedMISPSearch['type'] = requestData['dataTypes']
+
+    """
+    In the event that a data type like vulnerability is used, we need to ignore the to_ids parameter
+    This is being added in the list in the "sites" configuration file.
+    """
+    if set(definedMISPSearch['type']).intersection(requestData['ignore_to_ids']):
+        definedMISPSearch['to_ids'] = None
+    else:
+        definedMISPSearch['to_ids'] = True
     definedMISPSearch['timestamp'] = requestData['timestamp']
     definedMISPSearch['returnFormat'] = 'json'
     definedMISPSearch['includeEventTags'] = 'yes'
     definedMISPSearch['enforceWarninglist'] = True
-    definedMISPSearch['type'] = requestData['dataTypes']
     definedMISPSearch['withAttachments'] = False
     definedMISPSearch['published'] = True
     definedMISPSearch['org'] = ""
@@ -353,6 +361,7 @@ def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict
     requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
     requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
     requestData['dataTypes'] = configData['types'].get(type)
+    requestData['ignore_to_ids'] = configData['requestConfig']['config']['ignore_to_ids']
     requestData['body'] = feedDefineMISPSearch(feed, requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)
