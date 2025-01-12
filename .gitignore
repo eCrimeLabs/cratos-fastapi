@@ -164,3 +164,7 @@ error_log.txt
 assets/style.css
 report.html
 log_conf.yaml
+example_code/*
+tests/unit/test_api_external.py
+snyk-linux
+cratos_error_log.txt

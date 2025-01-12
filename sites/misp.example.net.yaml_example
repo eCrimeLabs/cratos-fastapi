@@ -20,3 +20,11 @@ custom_feeds:
   cust3: ":incident-classification=cust3"
   cust4: ":incident-classification=cust4"
   cust5: ":incident-classification=cust5"
+ignore_to_ids:
+  - "vulnerability"
+  - "snort"
+  - "yara"
+  - "sigma"
+  - "ja3"
+
+# EOF

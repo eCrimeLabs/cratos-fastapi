@@ -16,6 +16,7 @@ from typing import Union, Optional
 from typing_extensions import Annotated
 from datetime import date, datetime, timezone
 import asyncio
+import base64
 
 from pydantic import BaseModel, Field, create_model
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_503_SERVICE_UNAVAILABLE, HTTP_504_GATEWAY_TIMEOUT, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_500_INTERNAL_SERVER_ERROR
@@ -96,8 +97,17 @@ async def getApiToken(
     api_key = apiKeyQuery or apiKeyHeader
 
     if (credentials):
-        if credentials.username == "cratos":
+        """
+        The following is a check to see if the username is "cratos" and the password is a base64 encoded string and due to some security products
+        fail to accept long passwords the code also supports the option to split the base64 token into username and password and this is then concatenated.
+        
+        Only related to HTTPBasicCredentials
+        """
+        concat_user_pass = f"{credentials.username}{credentials.password}"
+        if ((credentials.username == "cratos") and dependencies.isUrlSafeBase64(credentials.password)):
             api_key = credentials.password
+        elif dependencies.isUrlSafeBase64(concat_user_pass):
+            api_key = concat_user_pass 
         else:
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."

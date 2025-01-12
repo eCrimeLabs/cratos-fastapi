@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import json
+from typing import List
 import yaml
 import base64
 import hashlib
@@ -14,6 +15,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
 import traceback
+import asyncio
+
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
 
@@ -166,9 +169,17 @@ def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
         if not (allowedIP['status']):
             return(allowedIP)
     except Exception:
-        with open('error_log.txt', 'a') as f:
-                traceback.print_exc(file=f)        
-                f.write("IP:" + srcIP + '\n')
+        if (configCore['debug']):
+            """
+            Requires the setting debug to be set to True in the config.yaml file.
+            """
+            with open('cratos_error_log.txt', 'a') as f:
+                    f.write("---------------------------------------------\n")
+                    f.write("Timestamp:" + str(datetime.now()) + '\n')
+                    f.write("Error in CheckApiToken:" + apiToken + '\n')
+                    f.write("IP:" + srcIP + '\n')
+                    traceback.print_exc(file=f)        
+
         returnValue = {'status': False, 'detail': 'Unknown error in CheckApiToken'}
         return(returnValue)
     returnValue = {'status': True, 'config': orgConfigData}
@@ -217,21 +228,21 @@ def validateStringBool(plainText: str) -> bool:
     :return: Boolean of string being in expected format
     """
     configData = plainText.split(";")
-    if (len(configData) == 5):
-        # There has to be excactly 5 parameters
-        if not re.search("^(https|http)$", configData[0], re.IGNORECASE):
-            return (False)
-        if not re.search("^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$", configData[1], re.IGNORECASE):
-            return (False)
-        if not re.search("^[a-zA-Z0-9\.\:]{4,75}$", configData[2], re.IGNORECASE):
-            return (False)
-        if not re.search("^[a-zA-Z0-9]{40,72}$", configData[3], re.IGNORECASE):
-            return (False)
-        if not re.search("^(19|20)[0-9]{2,2}[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$", configData[4], re.IGNORECASE):
-            return (False)
-        return (True)
+    if len(configData) == 5:
+        # There has to be exactly 5 parameters
+        if not re.search(r"^(https|http)$", configData[0], re.IGNORECASE):
+            return False
+        if not re.search(r"^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$", configData[1], re.IGNORECASE):
+            return False
+        if not re.search(r"^[a-zA-Z0-9\.\:]{4,75}$", configData[2], re.IGNORECASE):
+            return False
+        if not re.search(r"^[a-zA-Z0-9]{40,72}$", configData[3], re.IGNORECASE):
+            return False
+        if not re.search(r"^(19|20)[0-9]{2}[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$", configData[4], re.IGNORECASE):
+            return False
+        return True
     else:
-        return(False)
+        return False
 
 
 def setKDF(salt: str, password: str) -> object:
@@ -412,3 +423,4 @@ def memcacheFlushAllData() -> bool:
         return(False)
     except Exception:
         return(False)
+

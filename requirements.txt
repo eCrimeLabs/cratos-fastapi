@@ -1,3 +1,4 @@
+wheel
 fastapi
 pytest
 pytest-sugar
