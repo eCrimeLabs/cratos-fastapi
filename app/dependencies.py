@@ -228,21 +228,21 @@ def validateStringBool(plainText: str) -> bool:
     :return: Boolean of string being in expected format
     """
     configData = plainText.split(";")
-    if (len(configData) == 5):
-        # There has to be excactly 5 parameters
-        if not re.search("^(https|http)$", configData[0], re.IGNORECASE):
-            return (False)
-        if not re.search("^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$", configData[1], re.IGNORECASE):
-            return (False)
-        if not re.search("^[a-zA-Z0-9\.\:]{4,75}$", configData[2], re.IGNORECASE):
-            return (False)
-        if not re.search("^[a-zA-Z0-9]{40,72}$", configData[3], re.IGNORECASE):
-            return (False)
-        if not re.search("^(19|20)[0-9]{2,2}[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$", configData[4], re.IGNORECASE):
-            return (False)
-        return (True)
+    if len(configData) == 5:
+        # There has to be exactly 5 parameters
+        if not re.search(r"^(https|http)$", configData[0], re.IGNORECASE):
+            return False
+        if not re.search(r"^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$", configData[1], re.IGNORECASE):
+            return False
+        if not re.search(r"^[a-zA-Z0-9\.\:]{4,75}$", configData[2], re.IGNORECASE):
+            return False
+        if not re.search(r"^[a-zA-Z0-9]{40,72}$", configData[3], re.IGNORECASE):
+            return False
+        if not re.search(r"^(19|20)[0-9]{2}[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$", configData[4], re.IGNORECASE):
+            return False
+        return True
     else:
-        return(False)
+        return False
 
 
 def setKDF(salt: str, password: str) -> object:
