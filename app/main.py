@@ -93,6 +93,14 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     boolReverseProxyUsage = app.configCore.get('reverse_proxy')
     strReverseProxyeader = app.configCore.get('reverse_proxy_header')
+
+    # Log the request and response details
+    if (boolReverseProxyUsage):
+        client_ip = request.headers.get(strReverseProxyeader) or request.client.host
+    else:
+        client_ip = request.client.host     
+
+    app.ClientIP = client_ip  
  
     # Process the request
     response = await call_next(request)
@@ -100,18 +108,14 @@ async def log_requests(request: Request, call_next):
     # Calculate the processing time
     process_time = time.time() - start_time
     
-    # Log the request and response details
-    if (boolReverseProxyUsage):
-        client_ip = request.headers.get(strReverseProxyeader) or request.client.host
-    else:
-        client_ip = request.client.host   
+
 
     method = request.method
     url = request.url.path
     status_code = response.status_code
     content_length = response.headers.get('content-length', 0)
     http_version = request.scope.get('http_version', '1.1')
-    app.ClientIP = client_ip
+
 
     logger.info(f'{client_ip} - - [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f}')
     
