@@ -33,7 +33,6 @@ def schemaValidator(yamlFile: str, schemaFile: str) -> bool:
         print('Validation failed!\n%s' % str(e))
         return(False)
 
-
 def loadConfigYaml() -> dict:
     """ Loading the static config files related to the core Cratos FastAPI
         return: Returns a dict with with content of config.yml and mappings.yml this is a merge of the two files.
