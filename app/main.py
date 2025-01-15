@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
+import re
 from sys import prefix
 from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Header, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
@@ -69,7 +70,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(message)s',
     handlers=[
-#        logging.FileHandler(GLOBALCONFIG['access_log']),
         RotatingFileHandler(GLOBALCONFIG['access_log'], maxBytes=GLOBALCONFIG['access_log_max_bytes']*1024*1024, backupCount=GLOBALCONFIG['access_log_rotations']),  # Change in config.yaml
         logging.StreamHandler()
     ]
@@ -109,10 +109,27 @@ async def log_requests(request: Request, call_next):
     process_time = time.time() - start_time
     
     method = request.method
-    url = request.url.path
+    request_path = request.url.path
+
+    uri = str(request.url)  # Get the full URI
+    print (uri)
     status_code = response.status_code
     content_length = response.headers.get('content-length', 0)
     http_version = request.scope.get('http_version', '1.1')
+
+    # Regular expression pattern for the URL
+    pattern = re.compile(r'^https?:\/\/[^\/]+(\/.*)$')
+    match = pattern.match(str(request.url))
+    if match:
+        url = match.group(1)
+    else:
+        url = request.url
+
+    # Regular expression to match and anonymize token values, if present
+    token_regex = re.compile(r"token=[^&]+")
+
+    # Replace token values with a placeholder
+    url = token_regex.sub("token=ANONYMIZED", url)
 
     try:
         if (app.configCore['requestConfig']['apiTokenFQDN']):
