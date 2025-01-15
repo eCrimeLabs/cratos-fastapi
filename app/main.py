@@ -122,7 +122,7 @@ async def log_requests(request: Request, call_next):
     except:
         apiTokenFQDN = "No valid token set"
 
-    logger.info(f'{client_ip} - - [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f} "{apiTokenFQDN}"')
+    logger.info(f'{client_ip} - "{apiTokenFQDN}" [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f}')
     
     return response
 
