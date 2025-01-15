@@ -1,0 +1,17 @@
+[Unit]
+Description=Gunicorn instance to serve Cratos application
+After=network.target
+
+[Service]
+User=fastapi
+Group=fastapi
+WorkingDirectory=/opt/cratos-fastapi
+Environment="PATH=/opt/cratos-fastapi/.venv/bin"
+ExecStart=/opt/cratos-fastapi/.venv/bin/gunicorn -w 6 -b 0.0.0.0:8080 -k uvicorn.workers.UvicornWorker app.main:app --error-logfile /var/log/cratos/general.log --forwarded-allow-ips '*' --proxy-protocol -u fastapi -g fastapi --chdir /opt/cratos-fastapi --reload --max-requests 250 --max-requests-jitter 15
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

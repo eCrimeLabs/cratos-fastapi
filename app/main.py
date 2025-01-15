@@ -108,8 +108,6 @@ async def log_requests(request: Request, call_next):
     # Calculate the processing time
     process_time = time.time() - start_time
     
-
-
     method = request.method
     url = request.url.path
     status_code = response.status_code
