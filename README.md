@@ -189,7 +189,12 @@ $ python3 -m venv .venv
 $ .venv/bin/pip install -r requirements.txt
 ```
 
-## Configuraiton and setup of Nginx
+## Add the fastapi user
+```
+sudo adduser fastapiuser --system --no-create-home --shell /usr/sbin/nologin
+```
+
+## Configuraiton and setup of Nginx (If needed)
 
 In the [nginx.conf](/INSTALLATION/nginx.conf) be sure to modify the setup to match your environment, and also install a SSL certificate, either through your own or services like Let's Encrypt.
 
@@ -203,9 +208,6 @@ Modify [uvicorn_start](/INSTALLATION/uvicorn_start) to fit your needs, and copy 
 ```bash
 $ cp INSTALLATION/uvicorn_start uvicorn_start.sh
 
-# (OPTIONAL) If logging is enabled in the uvicorn_start.sh 
-$ cp INSTALLATION/log_conf.yaml log_conf.yaml
-
 # We want to test that it is working 
 $ chmod +x uvicorn_start.sh
 $ ./uvicorn_start.sh
@@ -214,7 +216,7 @@ $ ./uvicorn_start.sh
 It should start Cratos FastAPI application using Uvicorn with the predefined settings.
 
 ```bash
-$ cp INSTALLATION/cratos.conf /etc/supervisor/conf.d/cratos.conf
+$ cp INSTALLATION/cratos.conf_example /etc/supervisor/conf.d/cratos.conf
 ```
 
 Remember to modify the configuraiton in "cratos.conf" to be adapted to your environment.
@@ -241,16 +243,16 @@ sudo supervisorctl status cratos
 sudo supervisorctl
 ```
 
-## Configuration and setup of Systemd (Boot type 2)
+## Configuration and setup of Systemd (Boot type 2) - Recommended
 
 systemd can automatically start Gunicorn when the system boots and restart it if it crashes, ensuring high availability. Additionally systemd provides advanced resource management features, such as CPU and memory limits, which can help prevent Gunicorn from consuming too many resources.
 
 Utilizing systemd also offers security features like sandboxing and process isolation, which can help improve the security of your Gunicorn service.
 
-**Ensure to update INSTALLATION/gunicorn.service to fit your installation path**
+**Ensure to update INSTALLATION/gunicorn.service_example to fit your installation path**
 
 ```bash
-cp INSTALLATION/gunicorn.service /etc/systemd/system/gunicorn.service
+cp INSTALLATION/gunicorn.service_example /etc/systemd/system/gunicorn.service
 sudo systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl enable gunicorn

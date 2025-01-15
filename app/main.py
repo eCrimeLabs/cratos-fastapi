@@ -33,6 +33,8 @@ from app import dependencies
 from app.models import models
 import pprint
 import logging
+from logging.handlers import RotatingFileHandler
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.2"
+CRATOS_VERSION = "1.0.3"
 
 apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -61,6 +63,67 @@ You can in a structured form **custom build** your threat feeds from MISP in the
 integrations into your security components, while also ensuring automated expiration of "old" data.
 
 """
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[
+#        logging.FileHandler(GLOBALCONFIG['access_log']),
+        RotatingFileHandler(GLOBALCONFIG['access_log'], maxBytes=GLOBALCONFIG['access_log_max_bytes']*1024*1024, backupCount=GLOBALCONFIG['access_log_rotations']),  # Change in config.yaml
+        logging.StreamHandler()
+    ]
+
+)
+logger = logging.getLogger("http_logger")
+
+async def log_requests(request: Request, call_next):
+    """ 
+    It is essential that the FastAPI gets the real IP address of the visitor in order to do correct logging and validate the IP address
+    in the config file it can be set if the application is behind a reverse proxy or not, this is also to ensure that an
+    attacker is not able to spoof a header that would be understood by the application as the real IP.
+    
+    If no reverse proxy is used, the client's IP address is used, else use the header defined in the config file.
+        - reverse_proxy: False
+        - reverse_proxy_header: "X-Forwarded-For"    
+            Known headers are:
+            - "X-Real-IP"
+            - "X-Forwarded-For"
+    """    
+    start_time = time.time()
+    boolReverseProxyUsage = app.configCore.get('reverse_proxy')
+    strReverseProxyeader = app.configCore.get('reverse_proxy_header')
+
+    # Log the request and response details
+    if (boolReverseProxyUsage):
+        client_ip = request.headers.get(strReverseProxyeader) or request.client.host
+    else:
+        client_ip = request.client.host     
+
+    app.ClientIP = client_ip  
+ 
+    # Process the request
+    response = await call_next(request)
+    
+    # Calculate the processing time
+    process_time = time.time() - start_time
+    
+    method = request.method
+    url = request.url.path
+    status_code = response.status_code
+    content_length = response.headers.get('content-length', 0)
+    http_version = request.scope.get('http_version', '1.1')
+
+    try:
+        if (app.configCore['requestConfig']['apiTokenFQDN']):
+            apiTokenFQDN = app.configCore['requestConfig']['apiTokenFQDN']
+    except:
+        apiTokenFQDN = "No valid token set"
+
+    logger.info(f'{client_ip} - "{apiTokenFQDN}" [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f}')
+    
+    return response
+
 
 app = FastAPI(
     title="CRATOS - FastAPI proxy integration for MISP",
@@ -80,6 +143,9 @@ app = FastAPI(
 
 app.mount("/img", StaticFiles(directory="img"), name='images')
 
+# Add the logging and get real-ip middleware
+app.middleware("http")(log_requests)
+
 
 templates = Jinja2Templates(directory="templates/")
 favicon_path = 'templates/favicon.ico'
@@ -87,7 +153,6 @@ favicon_path = 'templates/favicon.ico'
 app.configCore = GLOBALCONFIG
 app.password = app.configCore['encryption_key'].encode()
 app.salt= app.configCore['salt'].encode()
-
 
 async def getApiToken(
     apiKeyQuery: str = Security(apiKeyQuery),
@@ -135,30 +200,6 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
         status_code=400,
         content={"message": str(exc)},
     )
-
-@app.middleware("http")
-async def process_proxy_header(request: Request, call_next):
-    """ 
-    It is essential that the FastAPI gets the real IP address of the visitor in order to validate the IP address
-    in the config file it can be set if the application is behind a reverse proxy or not, this is also to ensure that an
-    attacker is not able to spoof a header that would be understood by the application as the real IP.
-    
-    If no reverse proxy is used, the client's IP address is used, else use the header defined in the config file.
-        - reverse_proxy: False
-        - reverse_proxy_header: "X-Forwarded-For"    
-            Known headers are:
-            - "X-Real-IP"
-            - "X-Forwarded-For"
-    """
-    boolReverseProxyUsage = app.configCore.get('reverse_proxy')
-    strReverseProxyeader = app.configCore.get('reverse_proxy_header')
-
-    if (boolReverseProxyUsage):
-        app.ClientIP = request.headers.get(strReverseProxyeader) or request.client.host
-    else:
-        app.ClientIP = request.client.host
-    response = await call_next(request)
-    return response
 
 @app.get("/", include_in_schema=False)
 async def homepage(user_agent: Annotated[str | None, Header()] = None):

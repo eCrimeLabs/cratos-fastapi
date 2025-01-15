@@ -6,7 +6,7 @@ company: Example ApS
 tag: example
 mispVerifyCert: true
 mispTimeoutSeconds: 100
-mispDebug: true
+mispDebug: False
 memcached_all_timeout: 300
 falsepositive_timeout: "1w"
 list_stats: "1w"
