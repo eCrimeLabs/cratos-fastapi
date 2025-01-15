@@ -67,7 +67,7 @@ integrations into your security components, while also ensuring automated expira
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(message)s',
     handlers=[
 #        logging.FileHandler(GLOBALCONFIG['access_log']),
         RotatingFileHandler(GLOBALCONFIG['access_log'], maxBytes=GLOBALCONFIG['access_log_max_bytes']*1024*1024, backupCount=GLOBALCONFIG['access_log_rotations']),  # Change in config.yaml
@@ -116,8 +116,13 @@ async def log_requests(request: Request, call_next):
     content_length = response.headers.get('content-length', 0)
     http_version = request.scope.get('http_version', '1.1')
 
+    try:
+        if (app.configCore['requestConfig']['apiTokenFQDN']):
+            apiTokenFQDN = app.configCore['requestConfig']['apiTokenFQDN']
+    except:
+        apiTokenFQDN = "No valid token set"
 
-    logger.info(f'{client_ip} - - [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f}')
+    logger.info(f'{client_ip} - - [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f} "{apiTokenFQDN}"')
     
     return response
 
