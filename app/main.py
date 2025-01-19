@@ -77,6 +77,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("http_logger")
 
+app = FastAPI(docs_url=None, redoc_url=None)
+
+
+# Serve static files for the logo
+app.mount("/static", StaticFiles(directory="static"), name='static')
+
+@app.middleware("http")
 async def log_requests(request: Request, call_next):
     """ 
     It is essential that the FastAPI gets the real IP address of the visitor in order to do correct logging and validate the IP address
@@ -138,13 +145,21 @@ async def log_requests(request: Request, call_next):
     
     return response
 
-
-app = FastAPI(docs_url=None, redoc_url=None)
-
-# Serve static files for the logo
-app.mount("/static", StaticFiles(directory="static"), name='static')
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """
+    Adding security headers to the response to ensure that the application is not vulnerable to certain types of attacks.
+    X-Frame-Options: SAMEORIGIN - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
+    """
+    response = await call_next(request)
+    if request.url.path in ["/v1/help", "/redoc"]:
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    return response
 
 def custom_openapi():
+    """
+    Custom OpenAPI schema for the FastAPI application
+    """
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
@@ -170,8 +185,6 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# Add the logging and get real-ip middleware
-app.middleware("http")(log_requests)
 templates = Jinja2Templates(directory="templates/")
 
 app.configCore = GLOBALCONFIG
