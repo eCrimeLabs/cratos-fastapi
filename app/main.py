@@ -6,7 +6,7 @@ from sys import prefix
 from fastapi import Security, Depends, FastAPI, HTTPException, Request, Response, APIRouter, Header, Form, Path, Query
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from fastapi_versioning import VersionedFastAPI, version
 from fastapi.exceptions import RequestValidationError
@@ -139,30 +139,40 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-app = FastAPI(
-    title="CRATOS - FastAPI proxy integration for MISP",
-    description=description,
-    version=CRATOS_VERSION,
-    contact={
-        "name": "eCrimeLabs ApS",
-        "url": "https://github.com/eCrimeLabs/cratos-fastapi"
-        },
-    docs_url=None, 
-    swagger_ui_parameters={"defaultModelsExpandDepth": -1},
-    license_info={
-        "name": "License: MIT License",
-        "url": "https://spdx.org/licenses/MIT.html",
-    }
-)
+app = FastAPI(docs_url=None, redoc_url=None)
 
-app.mount("/img", StaticFiles(directory="img"), name='images')
+# Serve static files for the logo
+app.mount("/static", StaticFiles(directory="static"), name='static')
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="CRATOS - FastAPI proxy integration for MISP",
+        version=CRATOS_VERSION,
+        description=description,
+        contact={
+            "name": "eCrimeLabs ApS",
+            "url": "https://github.com/eCrimeLabs/cratos-fastapi"
+            },
+        license_info={
+            "name": "License: MIT License",
+            "url": "https://spdx.org/licenses/MIT.html",
+        },
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-logo"] = {
+        "url": "/static/logo.png",  # Ensure this path is correct and the file exists
+        "altText": "CRATOS Logo"
+    }
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # Add the logging and get real-ip middleware
 app.middleware("http")(log_requests)
-
-
 templates = Jinja2Templates(directory="templates/")
-favicon_path = 'templates/favicon.ico'
 
 app.configCore = GLOBALCONFIG
 app.password = app.configCore['encryption_key'].encode()
@@ -224,12 +234,9 @@ async def homepage(user_agent: Annotated[str | None, Header()] = None):
     unixtimestamp = int(utcNow.timestamp())
     return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": app.ClientIP, "User-Agent": user_agent, "timestamp": unixtimestamp}
 
-@app.get('/favicon.ico', include_in_schema=False)
+@app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    """
-    This is the favicon.ico file that is used in the browser.
-    """
-    return FileResponse(favicon_path)
+    return FileResponse("static/favicon.ico")
 
 @app.get("/v1/status", tags=["status"], summary="Used for monitoring Cratos FastAPI and memcached integration avaliability.")
 async def pong():
@@ -320,8 +327,19 @@ async def get_documentation():
     response = get_swagger_ui_html(
         openapi_url="/openapi.json", 
         title="CRATOS - FastAPI proxy Documentation",
+        swagger_favicon_url="/static/favicon.ico",  # Adding  favicon
+        swagger_js_url="/static/swagger-ui-dist/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui-dist/swagger-ui.css",
     )
     return response
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_html():
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - ReDoc",
+        redoc_js_url="/static/redoc/redoc.standalone.js",
+    )
 
 @app.get("/v1/check", 
          tags=["status"]
@@ -491,7 +509,7 @@ async def get_feeds_data(
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
-    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for x seconds, to avoid putting load on MISP (max caching 24 hours)", gt=0, le=86400)] = 1,
+    cache: Annotated[Union[int, None], Query(description="In the event that Memcaching is enabled, this parameter can be used to cache a request for XXX seconds, to avoid putting load on MISP (Max caching 86400 seconds (24 hours))", gt=0, le=86400)] = 1,
     api_key: APIKey = Depends(getApiToken)
     ):
     """ 
