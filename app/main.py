@@ -110,9 +110,6 @@ async def log_requests(request: Request, call_next):
     
     method = request.method
     request_path = request.url.path
-
-    uri = str(request.url)  # Get the full URI
-    print (uri)
     status_code = response.status_code
     content_length = response.headers.get('content-length', 0)
     http_version = request.scope.get('http_version', '1.1')
@@ -389,7 +386,7 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
 async def get_misp_warninglist(
     *,
     warninglistId: int = Path(title="The ID of the Warninglist to show, 0 lists avaliable Warninglists", ge=0, le=1000),
-    returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
+    returnedDataType: Annotated[models.ModelOutputWarninglists, Path(description="Defines the output that the feed will be presented in.")],
     api_key: APIKey = Depends(getApiToken)
     ):
     """
@@ -417,7 +414,7 @@ async def get_misp_warninglist(
         else:
             raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
 
-    warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)    
+    warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)
     return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
 
 
@@ -482,7 +479,7 @@ async def delete_cached_feeds_data(
     cachingKeyFP = dependencies.md5HashCacheKey(dataType + api_key)
     cacheResponse = dependencies.memcacheDeleteData(cachingKeyData)
     cacheResponse = dependencies.memcacheDeleteData(cachingKeyFP)
-    return Response(content='{"ok": True}', media_type='application/json')
+    return JSONResponse(content={"ok": True})
 
 
 @app.get("/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", 
