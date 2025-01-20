@@ -1,0 +1,8 @@
+/* static/swagger-custom.css */
+
+.swagger-ui .topbar-wrapper::before {
+    content: url('/static/logo.png'); /* Path to your logo */
+    margin-right: 10px;
+    display: inline-block;
+    vertical-align: middle;
+}

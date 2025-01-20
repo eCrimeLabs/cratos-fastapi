@@ -60,13 +60,16 @@ def organizationDefineMISPSearch(uuid: str, requestData: dict) -> dict:
     tags = []
     tags.append(requestData['tagNames'].get('falsepositive'))
     definedMISPSearch = {}
+    definedMISPSearch['type'] = requestData['dataTypes']    
     definedMISPSearch['tags'] = tags
-    definedMISPSearch['to_ids'] = True
+    if set(definedMISPSearch['type']).intersection(requestData['ignore_to_ids']):
+        definedMISPSearch['to_ids'] = None
+    else:
+        definedMISPSearch['to_ids'] = True    
     definedMISPSearch['timestamp'] = requestData['timestamp']
     definedMISPSearch['returnFormat'] = 'json'
     definedMISPSearch['includeEventTags'] = 'yes'
     definedMISPSearch['enforceWarninglist'] = True
-    definedMISPSearch['type'] = requestData['dataTypes']
     definedMISPSearch['withAttachments'] = False
     definedMISPSearch['published'] = True
     definedMISPSearch['org'] = uuid
@@ -386,6 +389,7 @@ def get_organization_data(uuid: str, type: str, age: str, output: str, configDat
     requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
     requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
     requestData['dataTypes'] = configData['types'].get(type)
+    requestData['ignore_to_ids'] = configData['requestConfig']['config']['ignore_to_ids']
     requestData['body'] = organizationDefineMISPSearch(uuid, requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)

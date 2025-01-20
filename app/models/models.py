@@ -62,6 +62,11 @@ class ModelOutputType(str, Enum):
     yaml = "yaml"
     b64 = "b64"
 
+class ModelOutputWarninglists(str, Enum):
+    txt = "txt"
+    json = "json"
+    xml = "xml"
+    yaml = "yaml"
 
 class ModuleOutputAge(str, Enum):
     oneHour = "1h"
