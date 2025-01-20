@@ -50,7 +50,7 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.3"
+CRATOS_VERSION = "1.0.4"
 
 apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
