@@ -96,14 +96,28 @@ async def log_requests(request: Request, call_next):
             Known headers are:
             - "X-Real-IP"
             - "X-Forwarded-For"
+    X-Headers containg the Real visitor IP can be a pain since the RFC7239 states that the header can contain multiple IP addresses, but depending on 
+    vendor implementation in some cases the real IP is the first and in some cases the last, so the code is written to 
+    to use the regex to find the IP address in the header, and the place is used to define what group in the regex to use.
     """    
     start_time = time.time()
     boolReverseProxyUsage = app.configCore.get('reverse_proxy')
-    strReverseProxyeader = app.configCore.get('reverse_proxy_header')
+    strReverseProxyHeader = app.configCore.get('reverse_proxy_header')
+    rexReverseProxyIP = app.configCore.get('reverse_proxy_real_ip_regex')
+    rexReverseProxyIPPlace = app.configCore.get('reverse_proxy_regex_place')
 
     # Log the request and response details
-    if (boolReverseProxyUsage):
-        client_ip = request.headers.get(strReverseProxyeader) or request.client.host
+    if boolReverseProxyUsage:
+        xHeaderIP = request.headers.get(strReverseProxyHeader)
+        if xHeaderIP:
+            compiled_regex = re.compile(rexReverseProxyIP)
+            match = compiled_regex.search(xHeaderIP)
+            if match:
+                client_ip = match.group(rexReverseProxyIPPlace)
+            else:
+                client_ip = request.client.host
+        else:
+            client_ip = request.client.host
     else:
         client_ip = request.client.host     
 
