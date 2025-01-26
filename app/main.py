@@ -205,11 +205,13 @@ async def log_requests(request: Request, call_next):
 async def add_security_headers(request: Request, call_next):
     """
     Adding security headers to the response to ensure that the application is not vulnerable to certain types of attacks.
-    X-Frame-Options: SAMEORIGIN - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
+    X-Frame-Options: DENY - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
     """
     response = await call_next(request)
-    if request.url.path in ["/v1/help", "/redoc"]:
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    if request.url.path in ["/v1/help", "/redoc", "/v1/generate_token_form"]:
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers['Content-Security-Policy'] = "default-src 'self';"
+        response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
 
 def custom_openapi():
