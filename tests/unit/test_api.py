@@ -10,29 +10,25 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 import random
 import pprint
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 with open('test.token', 'r') as f:
     token = f.read().strip()
 
-''' 
-   Define the percentage as a string, for how many values to select from Model DataType
-   Running the test with 100% of the total values from ModelDataType will take long time
-   
-   As default we are sampling 10% random values from ModelDataType, else change the below value
-'''
-PERCENTAGE_DATATYPE = "20%"
+PERCENTAGE_DATATYPE = "10%"
 TOKEN_HEADER = {"token": token}
 MAX_WORKERS = 5
 DATAAGE = ["1h", "1w"]
-ORGUUID = ['55f6ea5e-2c60-40e5-964f-47a8950d210f','569b6c1f-bd1c-49c8-9244-0484bce2ab96']
+ORGUUID = ['55f6ea5e-2c60-40e5-964f-47a8950d210f', '569b6c1f-bd1c-49c8-9244-0484bce2ab96']
 
 client = TestClient(app)
 
-# Convert the percentage string to a decimal
 percentage = int(PERCENTAGE_DATATYPE.rstrip('%')) / 100
-# Calculate % of the total number of values from ModelDataType
 sample_size = int(len(ModelDataType) * percentage)
-# Select a random sample of values
 samplingModelDataTypes = random.sample([e.value for e in ModelDataType], sample_size)
 
 def test_root():
@@ -69,19 +65,16 @@ def test_openapi():
     response = client.get("/v1/openapi.json")
     assert response.status_code == 200
 
-
 @pytest.mark.parametrize("feedName,dataType,dataAge,returnedDataType", product([e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_feeds_data(feedName, dataType, dataAge, returnedDataType):
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        
         futures = [executor.submit(client.get, f"/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)]
-        
         for future in futures:
             start_time = time.time()
             response = future.result()
             content = response.content
             end_time = time.time()
-            print(f"Request and response time: {end_time - start_time} seconds")
+            logger.info(f"Request and response time: {end_time - start_time} seconds")
             assert response.status_code == 200
 
             if returnedDataType == "json":
@@ -99,20 +92,17 @@ def test_get_feeds_data(feedName, dataType, dataAge, returnedDataType):
                     DefusedET.fromstring(content)
                 except DefusedET.ParseError:
                     pytest.fail("Invalid XML")
-
 
 @pytest.mark.parametrize("orgUUID,dataType,dataAge,returnedDataType", product(ORGUUID, samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        
         futures = [executor.submit(client.get, f"/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)]
-        
         for future in futures:
             start_time = time.time()
             response = future.result()
             content = response.content
             end_time = time.time()
-            print(f"Request and response time: {end_time - start_time} seconds")
+            logger.info(f"Request and response time: {end_time - start_time} seconds")
             assert response.status_code == 200
 
             if returnedDataType == "json":
@@ -131,11 +121,9 @@ def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
                 except DefusedET.ParseError:
                     pytest.fail("Invalid XML")
 
-
 @pytest.mark.parametrize("vendorName,feedName,dataType,dataAge", product([e.value for e in ModelVendorName], [e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE))
-def test_get_feeds_data(vendorName, feedName, dataType, dataAge):
+def test_get_vendor_feeds_data(vendorName, feedName, dataType, dataAge):
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        
         futures = [executor.submit(client.get, f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", headers=TOKEN_HEADER)]
         pprint.pprint(futures)
         for future in futures:
@@ -143,6 +131,6 @@ def test_get_feeds_data(vendorName, feedName, dataType, dataAge):
             response = future.result()
             content = response.content
             end_time = time.time()
-            print(f"Request and response time: {end_time - start_time} seconds")
-            print(f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
+            logger.info(f"Request and response time: {end_time - start_time} seconds")
+            logger.info(f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
             assert response.status_code == 200

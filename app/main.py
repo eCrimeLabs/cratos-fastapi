@@ -395,12 +395,13 @@ async def check_misp_connection(request: Request, api_key: APIKey = Depends(getA
     mispAuthKey = request.state.configCore['apiTokenAuthKey']
     mispResponse = await run_in_threadpool(misp.mispGetVersion, mispURL, mispAuthKey)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     mispResponse.pop('status')        
     return mispResponse
@@ -423,12 +424,13 @@ async def get_misp_statistics(request: Request, api_key: APIKey = Depends(getApi
     mispResponse = await run_in_threadpool(misp.mispGetStatistics, mispURL, mispAuthKey)
 
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     mispResponse.pop('status')        
     return mispResponse
@@ -462,12 +464,13 @@ async def get_misp_warninglist(
     mispAuthKey = request.state.configCore['apiTokenAuthKey']
     mispResponse = await run_in_threadpool(misp.mispGetWarninglists, mispURL, mispAuthKey, warninglistId)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)
     return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
@@ -583,12 +586,13 @@ async def get_feeds_data(
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Thread error")
 
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     # deepcode ignore reDOS: The mitigation for this is located in the models
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
@@ -637,12 +641,13 @@ async def get_vendor_data(
 
     mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, "txt", request.state.configCore, app.configCore)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     if (vendorName == "paloalto"):
         # deepcode ignore reDOS: The mitigation for this is located in the models
@@ -699,12 +704,13 @@ async def get_organizaiton_data(
 
     mispResponse = await run_in_threadpool(feeds.get_organization_data, orgUUID, dataType, dataAge, returnedDataType, request.state.configCore, app.configCore)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     # deepcode ignore reDOS: The mitigation for this is located in the models
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)

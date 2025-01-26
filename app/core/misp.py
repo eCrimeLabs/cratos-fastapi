@@ -51,6 +51,7 @@ def mispSearchAttributesSimpel(requestData: dict) -> dict:
             'status': True,
             'content': responseMISP
         }
+        return(requestResponse)
     except Exception as e:
         # PyMISP catching errors
         requestResponse = {
