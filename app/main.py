@@ -211,9 +211,16 @@ async def add_security_headers(request: Request, call_next):
     if request.url.path in ["/v1/help", "/redoc", "/v1/generate_token_form"]:
         # Add security headers
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        response.headers['Content-Security-Policy'] = "default-src 'self';"
+        response.headers['Content-Security-Policy'] = (
+                        "default-src 'none'; "
+                        "script-src 'self' blob: 'sha256-P28/j37f0MgfkZ2lTEH5bnnfZ8YlHZ4cHtK+EWL/Qhw='; "
+                        "style-src 'self' 'unsafe-inline' fonts.googleapis.com; "
+                        "font-src fonts.gstatic.com; "
+                        "connect-src 'self'; "
+                        "img-src 'self';"
+                    )
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
