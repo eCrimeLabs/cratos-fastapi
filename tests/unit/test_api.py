@@ -20,7 +20,7 @@ with open('test.token', 'r') as f:
    
    As default we are sampling 10% random values from ModelDataType, else change the below value
 '''
-PERCENTAGE_DATATYPE = "10%"
+PERCENTAGE_DATATYPE = "20%"
 TOKEN_HEADER = {"token": token}
 MAX_WORKERS = 5
 DATAAGE = ["1h", "1w"]
