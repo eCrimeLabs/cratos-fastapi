@@ -12,38 +12,53 @@ def mispSearchAttributesSimpel(requestData: dict) -> dict:
     body = requestData['body']
  
     try:
-        misp = PyMISP(requestData['mispURL'], requestData['mispAuthKey'], requestData['mispVerifyCert'], requestData['mispDebug'])
+        misp = PyMISP(
+            requestData['mispURL'], 
+            requestData['mispAuthKey'], 
+            requestData['mispVerifyCert'], 
+            requestData['mispDebug']
+        )
     except Exception as e:
         # PyMISP does not throw an exception for an invalid authkey
-        requestResponse['status'] = False
-        requestResponse['content'] = ('PyMISP exception="%s"\n' % (str(e)))
-        requestResponse['error_num'] = 10
-        requestResponse['error'] = ("PyMISP to MISP - Connection error")
+        requestResponse = {
+            'status': False,
+            'content': f'PyMISP exception="{str(e)}"\n',
+            'error_num': 10,
+            'error': "PyMISP to MISP - Connection error"
+        }        
         return(requestResponse)
 
     try:    
-        responseMISP = misp.search(
-            controller='attributes',
-            return_format=body['returnFormat'], 
-            tags=body['tags'], 
-            type_attribute=body['type'], 
-            timestamp=body['timestamp'], 
-            enforceWarninglist=body['enforceWarninglist'],
-            to_ids=body['to_ids'],
-            published=body['published'],
-            org=body['org'],
-            metadata=True, 
-            pythonify=True
-        )
-        requestResponse['status'] = True
-        requestResponse['content'] = responseMISP
-        return(requestResponse)    
+        search_params = {
+            'controller': 'attributes',
+            'return_format': body['returnFormat'],
+            'tags': body['tags'],
+            'type_attribute': body['type'],
+            'timestamp': body['timestamp'],
+            'enforceWarninglist': body['enforceWarninglist'],
+            'published': body['published'],
+            'metadata': True,
+            'pythonify': True
+        }
+
+        if body['to_ids']:
+            search_params['to_ids'] = body['to_ids']
+        if 'org' in body and body['org']:
+            search_params['org'] = body['org']
+
+        responseMISP = misp.search(**search_params)   
+        requestResponse = {
+            'status': True,
+            'content': responseMISP
+        }
     except Exception as e:
         # PyMISP catching errors
-        requestResponse['status'] = False
-        requestResponse['content'] = ('PyMISP exception="%s"\n' % (str(e)))
-        requestResponse['error_num'] = 10
-        requestResponse['error'] = ("PyMISP to MISP - Search error invalid or missing response")
+        requestResponse = {
+            'status': False,
+            'content': f'PyMISP exception="{str(e)}"\n',
+            'error_num': 10,
+            'error': "PyMISP to MISP - Search error invalid or missing response"
+        }
         return(requestResponse)
 
 def mispGETRequest(url: str, headers: dict, timeout: int, verify: bool) -> dict:

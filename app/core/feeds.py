@@ -33,7 +33,7 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     This is being added in the list in the "sites" configuration file.
     """
     if set(definedMISPSearch['type']).intersection(requestData['ignore_to_ids']):
-        definedMISPSearch['to_ids'] = None
+        definedMISPSearch['to_ids'] = None # This is a special case where we need to ignore the to_ids parameter
     else:
         definedMISPSearch['to_ids'] = True
     definedMISPSearch['timestamp'] = requestData['timestamp']
