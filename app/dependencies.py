@@ -16,6 +16,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import bmemcached
 import traceback
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
@@ -147,44 +150,37 @@ def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
     """
     returnValue = {}
     try:
-        if (type(apiToken) != str):
-            returnValue = {'status': False, 'detail': 'Token is not a valid string'}
-            return(returnValue)
+        if not isinstance(apiToken, str):
+            return {'status': False, 'detail': 'Token is not a valid string'}
 
         base64Validate = isUrlSafeBase64(apiToken)
-        if not (base64Validate['status']):
-            # Failed Base64 validation
-            return(base64Validate)
+        if not base64Validate['status']:
+            """ The token is not a valid base64 string """
+            return base64Validate
 
         decryptedConfigToken = decryptString(apiToken, salt, password)
-        if not (decryptedConfigToken['status']):
-            # Failed Token decryption
-            return (decryptedConfigToken)
+        if not decryptedConfigToken['status']:
+            """ The token could not be decrypted """
+            return decryptedConfigToken
 
         orgConfigData = orgConfigExtraction(decryptedConfigToken['detail'])
-        if not (orgConfigData['status']):
-            return (orgConfigData)
+        if not orgConfigData['status']:
+            """ Failed to extract the config data """
+            return orgConfigData
 
         allowedIP = ipOnAllowList(srcIP, configCore['allways_allowed_ips'], orgConfigData['config']['allowed_ips'])
-        if not (allowedIP['status']):
-            return(allowedIP)
-    except Exception:
-        if (configCore['debug']):
-            """
-            Requires the setting debug to be set to True in the config.yaml file.
-            """
-            with open('cratos_error_log.txt', 'a') as f:
-                    f.write("---------------------------------------------\n")
-                    f.write("Timestamp:" + str(datetime.now()) + '\n')
-                    f.write("Error in CheckApiToken:" + apiToken + '\n')
-                    f.write("IP:" + srcIP + '\n')
-                    traceback.print_exc(file=f)        
-
-        returnValue = {'status': False, 'detail': 'Unknown error in CheckApiToken'}
-        return(returnValue)
-    returnValue = {'status': True, 'config': orgConfigData}
-    return(returnValue)
-
+        if not allowedIP['status']:
+            """ The IP is not allowed to access the MISP instance, through the API """
+            return allowedIP
+    except ValueError as ve:
+        return {'status': False, 'detail': f'Value error: {str(ve)}'}
+    except KeyError as ke:
+        return {'status': False, 'detail': f'Key error: {str(ke)}'}
+    except Exception as e:
+        if configCore['debug']:
+            logger.error(f"Error in CheckApiToken: {str(e)}")
+        return {'status': False, 'detail': 'Unknown error in CheckApiToken'}
+    return {'status': True, 'config': orgConfigData}
 
 def orgConfigExtraction(decryptedConfigToken: str) -> dict:
     """ Parses the decrypted string and validates the string
