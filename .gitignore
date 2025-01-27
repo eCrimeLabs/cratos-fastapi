@@ -169,3 +169,4 @@ tests/unit/test_api_external.py
 snyk-linux
 cratos_error_log.txt
 .vscode/settings.json
+static/redoc/redoc.standalone.js.org

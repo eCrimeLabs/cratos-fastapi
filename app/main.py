@@ -212,12 +212,18 @@ async def add_security_headers(request: Request, call_next):
         # Add security headers
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         response.headers['Content-Security-Policy'] = (
-                        "default-src 'none'; "
-                        "script-src 'self' blob: 'sha256-P28/j37f0MgfkZ2lTEH5bnnfZ8YlHZ4cHtK+EWL/Qhw='; "
-                        "style-src 'self' 'unsafe-inline' fonts.googleapis.com; "
-                        "font-src fonts.gstatic.com; "
-                        "connect-src 'self'; "
-                        "img-src 'self';"
+            "default-src 'self';"
+            "script-src 'self' 'unsafe-inline';"
+            "style-src 'self' 'unsafe-inline';"
+            "object-src 'none';"
+            "base-uri 'self';"
+            "connect-src 'self';"
+            "font-src 'self';"
+            "frame-src 'self';"
+            "img-src 'self' data:;"
+            "manifest-src 'self';"
+            "media-src 'self';"
+            "worker-src blob:;"
                     )
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
@@ -391,6 +397,7 @@ async def redoc_html():
         title=app.title + " - ReDoc",
         redoc_favicon_url="/static/favicon.ico",  # Adding  favicon
         redoc_js_url="/static/redoc/redoc.standalone.js",
+        with_google_fonts=False
     )
 
 @app.get("/v1/check", 
