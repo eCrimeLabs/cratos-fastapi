@@ -50,7 +50,7 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.4"
+CRATOS_VERSION = "1.0.5"
 
 
 
