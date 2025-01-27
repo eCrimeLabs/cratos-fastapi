@@ -300,7 +300,14 @@ async def homepage(request: Request, user_agent: Annotated[str | None, Header()]
     """    
     utcNow = datetime.now(timezone.utc)
     unixtimestamp = int(utcNow.timestamp())
-    return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": request.state.client_ip, "User-Agent": user_agent, "timestamp": unixtimestamp}
+    return {
+        "message": f"CRATOS - FastAPI proxy v.{CRATOS_VERSION} integration for MISP", 
+        "IP": request.state.client_ip, 
+        "User-Agent": user_agent, 
+        "timestamp": unixtimestamp,
+        "date_time": utcNow.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "repository": "https://github.com/eCrimeLabs/cratos-fastapi"
+    }
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
