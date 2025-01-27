@@ -65,13 +65,13 @@ types:
     - hostname|port
   url:
     - url
-  md5:
+  file-md5:
     - md5
     - filename|md5
-  sha1:
+  file-sha1:
     - sha1
     - filename|sha1
-  sha256:
+  file-sha256:
     - sha256
     - filename|sha256
   mutex:

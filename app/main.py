@@ -52,8 +52,7 @@ error_mapping = {
 API_KEY_NAME = "token"
 CRATOS_VERSION = "1.0.4"
 
-apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
-apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
 
 description = """
 CRATOS - FastAPI proxy is your secure and optimized integration between your security infrastructure and your MISP Threat Sharing Platform.
@@ -79,6 +78,47 @@ logger = logging.getLogger("http_logger")
 
 app = FastAPI(docs_url=None, redoc_url=None)
 
+apiKeyQuery = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
+apiKeyHeader = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+security = HTTPBasic(auto_error=False)
+
+async def getApiToken(
+    request: Request,
+    apiKeyQuery: str = Security(apiKeyQuery),
+    apiKeyHeader: str = Security(apiKeyHeader),
+    credentials: Optional[HTTPBasicCredentials] = Depends(security)
+):
+    api_key = apiKeyQuery or apiKeyHeader
+
+    if (credentials):
+        """
+        The following is a check to see if the username is "cratos" and the password is a base64 encoded string and due to some security products
+        fail to accept long passwords the code also supports the option to split the base64 token into username and password and this is then concatenated.
+        
+        Only related to HTTPBasicCredentials
+        """
+        concat_user_pass = f"{credentials.username}{credentials.password}"
+        if credentials.username == "cratos" and dependencies.isUrlSafeBase64(credentials.password):
+            api_key = credentials.password
+        elif dependencies.isUrlSafeBase64(concat_user_pass):
+            api_key = concat_user_pass
+        else:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
+            )
+
+    if api_key is not None:
+        client_ip = request.client.host
+        returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, client_ip)
+        if returnValue['status']:
+            request.state.configCore = returnValue['config']
+            return api_key
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN, detail=returnValue['detail']
+        )
+    raise HTTPException(
+        status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
+    )
 
 # Serve static files for the logo
 app.mount("/static", StaticFiles(directory="static"), name='static')
@@ -96,18 +136,34 @@ async def log_requests(request: Request, call_next):
             Known headers are:
             - "X-Real-IP"
             - "X-Forwarded-For"
+
+    X-Headers containg the Real visitor IP can be a pain since the RFC7239 states that the header can contain multiple IP addresses, but depending on 
+    vendor implementation in some cases the real IP is the first and in some cases the last, so the code is written to 
+    to use the regex to find the IP address in the header, and the place is used to define what group in the regex to use.
     """    
     start_time = time.time()
     boolReverseProxyUsage = app.configCore.get('reverse_proxy')
-    strReverseProxyeader = app.configCore.get('reverse_proxy_header')
+    strReverseProxyHeader = app.configCore.get('reverse_proxy_header')
+    rexReverseProxyIP = app.configCore.get('reverse_proxy_real_ip_regex')
+    rexReverseProxyIPPlace = app.configCore.get('reverse_proxy_regex_place')
 
     # Log the request and response details
-    if (boolReverseProxyUsage):
-        client_ip = request.headers.get(strReverseProxyeader) or request.client.host
+    if boolReverseProxyUsage:
+        xHeaderIP = request.headers.get(strReverseProxyHeader)
+        if xHeaderIP:
+            compiled_regex = re.compile(rexReverseProxyIP)
+            match = compiled_regex.search(xHeaderIP)
+            if match:
+                client_ip = match.group(rexReverseProxyIPPlace)
+            else:
+                client_ip = request.client.host
+        else:
+            client_ip = request.client.host
     else:
         client_ip = request.client.host     
 
     app.ClientIP = client_ip  
+    request.state.client_ip = client_ip
  
     # Process the request
     response = await call_next(request)
@@ -136,8 +192,8 @@ async def log_requests(request: Request, call_next):
     url = token_regex.sub("token=ANONYMIZED", url)
 
     try:
-        if (app.configCore['requestConfig']['apiTokenFQDN']):
-            apiTokenFQDN = app.configCore['requestConfig']['apiTokenFQDN']
+        if (request.state.configCore['apiTokenFQDN']):
+            apiTokenFQDN = request.state.configCore['apiTokenFQDN']
     except:
         apiTokenFQDN = "No valid token set"
 
@@ -149,11 +205,33 @@ async def log_requests(request: Request, call_next):
 async def add_security_headers(request: Request, call_next):
     """
     Adding security headers to the response to ensure that the application is not vulnerable to certain types of attacks.
-    X-Frame-Options: SAMEORIGIN - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
+    X-Frame-Options: DENY - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
     """
     response = await call_next(request)
-    if request.url.path in ["/v1/help", "/redoc"]:
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    if request.url.path in ["/v1/help", "/redoc", "/v1/generate_token_form"]:
+        # Add security headers
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self';"
+            "script-src 'self' 'unsafe-inline';"
+            "style-src 'self' 'unsafe-inline';"
+            "object-src 'none';"
+            "base-uri 'self';"
+            "connect-src 'self';"
+            "font-src 'self';"
+            "frame-src 'self';"
+            "img-src 'self' data:;"
+            "manifest-src 'self';"
+            "media-src 'self';"
+            "worker-src blob:;"
+                    )
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     return response
 
 def custom_openapi():
@@ -191,41 +269,7 @@ app.configCore = GLOBALCONFIG
 app.password = app.configCore['encryption_key'].encode()
 app.salt= app.configCore['salt'].encode()
 
-async def getApiToken(
-    apiKeyQuery: str = Security(apiKeyQuery),
-    apiKeyHeader: str = Security(apiKeyHeader),
-    credentials: Optional[HTTPBasicCredentials] = Depends(HTTPBasic(auto_error=False))
-):
-    api_key = apiKeyQuery or apiKeyHeader
 
-    if (credentials):
-        """
-        The following is a check to see if the username is "cratos" and the password is a base64 encoded string and due to some security products
-        fail to accept long passwords the code also supports the option to split the base64 token into username and password and this is then concatenated.
-        
-        Only related to HTTPBasicCredentials
-        """
-        concat_user_pass = f"{credentials.username}{credentials.password}"
-        if ((credentials.username == "cratos") and dependencies.isUrlSafeBase64(credentials.password)):
-            api_key = credentials.password
-        elif dependencies.isUrlSafeBase64(concat_user_pass):
-            api_key = concat_user_pass 
-        else:
-            raise HTTPException(
-                status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
-            )    
-
-    if api_key is not None:
-        returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, app.ClientIP)
-        if returnValue['status']:
-            app.configCore['requestConfig'] = returnValue['config']
-            return api_key
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN, detail=returnValue['detail']
-        )
-    raise HTTPException(
-        status_code=HTTP_403_FORBIDDEN, detail="Could not validate token, or token not set."
-    )
 
 @app.on_event("startup")
 async def startup_event():
@@ -239,20 +283,20 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
     )
 
 @app.get("/", include_in_schema=False)
-async def homepage(user_agent: Annotated[str | None, Header()] = None):
+async def homepage(request: Request, user_agent: Annotated[str | None, Header()] = None):
     """
     Default front page of CRATOS FastAPI proxy
     """    
     utcNow = datetime.now(timezone.utc)
     unixtimestamp = int(utcNow.timestamp())
-    return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": app.ClientIP, "User-Agent": user_agent, "timestamp": unixtimestamp}
+    return {"message": "CRATOS - FastAPI proxy integration for MISP", "IP": request.state.client_ip, "User-Agent": user_agent, "timestamp": unixtimestamp}
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse("static/favicon.ico")
 
 @app.get("/v1/status", tags=["status"], summary="Used for monitoring Cratos FastAPI and memcached integration avaliability.")
-async def pong():
+async def pong(request: Request):
     """ 
     The following route can be used to continually monitor the service is running 
 
@@ -353,12 +397,13 @@ async def redoc_html():
         title=app.title + " - ReDoc",
         redoc_favicon_url="/static/favicon.ico",  # Adding  favicon
         redoc_js_url="/static/redoc/redoc.standalone.js",
+        with_google_fonts=False
     )
 
 @app.get("/v1/check", 
          tags=["status"]
          )
-async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
+async def check_misp_connection(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     Check the connection status to the MISP instance
 
@@ -369,16 +414,17 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
     :return: JSON output of the minor information on the MISP instance such as version and pyMISP version
     """       
     mispResponse = {}
-    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
-    mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
+    mispURL = f"{request.state.configCore['apiTokenProto']}://{request.state.configCore['apiTokenFQDN']}:{request.state.configCore['apiTokenPort']}"
+    mispAuthKey = request.state.configCore['apiTokenAuthKey']
     mispResponse = await run_in_threadpool(misp.mispGetVersion, mispURL, mispAuthKey)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     mispResponse.pop('status')        
     return mispResponse
@@ -387,7 +433,7 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
          tags=["info"], 
          summary="Get attribute type statistics from the MISP"
 )
-async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
+async def get_misp_statistics(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     Get statistical data from the MISP instance, related to the numbers based on attribute types.
 
@@ -396,17 +442,18 @@ async def get_misp_statistics(api_key: APIKey = Depends(getApiToken)):
     :return: JSON output with the statictic data.
     """    
     mispResponse = {}
-    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
-    mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
+    mispURL = f"{request.state.configCore['apiTokenProto']}://{request.state.configCore['apiTokenFQDN']}:{request.state.configCore['apiTokenPort']}"
+    mispAuthKey = request.state.configCore['apiTokenAuthKey']
     mispResponse = await run_in_threadpool(misp.mispGetStatistics, mispURL, mispAuthKey)
 
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     mispResponse.pop('status')        
     return mispResponse
@@ -419,6 +466,7 @@ async def get_misp_warninglist(
     *,
     warninglistId: int = Path(title="The ID of the Warninglist to show, 0 lists avaliable Warninglists", ge=0, le=1000),
     returnedDataType: Annotated[models.ModelOutputWarninglists, Path(description="Defines the output that the feed will be presented in.")],
+    request: Request,
     api_key: APIKey = Depends(getApiToken)
     ):
     """
@@ -435,16 +483,17 @@ async def get_misp_warninglist(
     :return: Contant of warninglist of avaliable warninglists in the choosen output format
     """
     mispResponse = {}
-    mispURL = f"{app.configCore['requestConfig']['apiTokenProto']}://{app.configCore['requestConfig']['apiTokenFQDN']}:{app.configCore['requestConfig']['apiTokenPort']}"
-    mispAuthKey = app.configCore['requestConfig']['apiTokenAuthKey']
+    mispURL = f"{request.state.configCore['apiTokenProto']}://{request.state.configCore['apiTokenFQDN']}:{request.state.configCore['apiTokenPort']}"
+    mispAuthKey = request.state.configCore['apiTokenAuthKey']
     mispResponse = await run_in_threadpool(misp.mispGetWarninglists, mispURL, mispAuthKey, warninglistId)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     warninglistResponse = feeds.formatWarninglistOutputData(mispResponse, returnedDataType)
     return Response(content=warninglistResponse['content'], media_type=warninglistResponse['content_type'])
@@ -455,7 +504,7 @@ async def get_misp_warninglist(
          summary="Get the mapping of the Cratos feeds to the tags in MISP.",
          response_class=PlainTextResponse
          )
-async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
+async def check_misp_connection(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     This will display the mapping between the Cratos feeds and to the tags in MISP
 
@@ -463,9 +512,9 @@ async def check_misp_connection(api_key: APIKey = Depends(getApiToken)):
     
     :return: text output of the mapping between the Cratos FastAPI feeds and the MISP tags
     """       
-    appConfig = app.configCore
-    feedsDict = appConfig['requestConfig']['config']['custom_feeds']
-    tagStr = appConfig['requestConfig']['config']['tag']
+    appConfig = request.state.configCore
+    feedsDict = appConfig['config']['custom_feeds']
+    tagStr = appConfig['config']['tag']
     standardFeedsDict = {
         "incident": ":incident-classification=incident",
         "block": ":incident-classifition=block",
@@ -490,6 +539,7 @@ async def delete_cached_feeds_data(
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
     returnedDataType: Annotated[models.ModelOutputType, Path(description="Defines the output that the feed will be presented in.")],
+    request: Request,
     api_key: APIKey = Depends(getApiToken)
     ):
     """ 
@@ -519,6 +569,7 @@ async def delete_cached_feeds_data(
          summary="Gather data from MISP typically based on tags and return in structured formats."
 )
 async def get_feeds_data(
+    request: Request,
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
@@ -553,17 +604,18 @@ async def get_feeds_data(
         cacheResponseData['cacheHit'] = False
 
     try:
-        mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, app.configCore)
+        mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, returnedDataType, request.state.configCore, app.configCore)
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Thread error")
 
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     # deepcode ignore reDOS: The mitigation for this is located in the models
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)
@@ -576,6 +628,7 @@ async def get_feeds_data(
          summary="Returns the feed data from MISP in a structured format for a specific vendors.",
 )
 async def get_vendor_data(
+    request: Request,
     vendorName: Annotated[models.ModelVendorName, Path(description="The vendor name will return the output in a specific vendor based format.")],
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
@@ -609,14 +662,15 @@ async def get_vendor_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-    mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, "txt", app.configCore)
+    mispResponse = await run_in_threadpool(feeds.get_feeds_data, feedName, dataType, dataAge, "txt", request.state.configCore, app.configCore)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     if (vendorName == "paloalto"):
         # deepcode ignore reDOS: The mitigation for this is located in the models
@@ -637,6 +691,7 @@ async def get_vendor_data(
          summary="Get data related to MISP Organization UUID."
 )
 async def get_organizaiton_data(
+    request: Request,
     orgUUID: Annotated[str | None, Path(min_length=36, max_length=36, description="MISP Organization UUID", pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
@@ -670,14 +725,15 @@ async def get_organizaiton_data(
     else:
         cacheResponseData['cacheHit'] = False
 
-    mispResponse = await run_in_threadpool(feeds.get_organization_data, orgUUID, dataType, dataAge, returnedDataType, app.configCore)
+    mispResponse = await run_in_threadpool(feeds.get_organization_data, orgUUID, dataType, dataAge, returnedDataType, request.state.configCore, app.configCore)
 
-    if not mispResponse['status']:
-        error_num = mispResponse['error_num']
+    if mispResponse is None or not mispResponse.get('status', False):
+        error_num = mispResponse.get('error_num', 0) if mispResponse else 0
+        error_detail = mispResponse.get('error', "Unknown error") if mispResponse else "Unknown error"
         if error_num in error_mapping:
-            raise HTTPException(status_code=error_mapping[error_num], detail=mispResponse['error'])
+            raise HTTPException(status_code=error_mapping[error_num], detail=error_detail)
         else:
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Unknown error")
+            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
     # deepcode ignore reDOS: The mitigation for this is located in the models
     mispParsedData = feeds.formatFeedOutputData(mispResponse, returnedDataType, dataType, cache, cachingKeyData)

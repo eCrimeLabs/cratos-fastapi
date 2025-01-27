@@ -5,8 +5,11 @@ from app.core import misp
 from app import dependencies
 import re
 import ipaddress
-from dicttoxml import dicttoxml
+from dicttoxml import dicttoxml, LOG
+import logging
 
+# Suppress info/debug logs from dicttoxml
+LOG.setLevel(logging.ERROR)
 
 def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     """ The following function defines the search parameters for the MISP search.
@@ -30,7 +33,7 @@ def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     This is being added in the list in the "sites" configuration file.
     """
     if set(definedMISPSearch['type']).intersection(requestData['ignore_to_ids']):
-        definedMISPSearch['to_ids'] = None
+        definedMISPSearch['to_ids'] = None # This is a special case where we need to ignore the to_ids parameter
     else:
         definedMISPSearch['to_ids'] = True
     definedMISPSearch['timestamp'] = requestData['timestamp']
@@ -323,7 +326,7 @@ def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
     return sorted(set(returnData))
 
 
-def getFalsePositiveData(type: str, age: str, configData: dict) -> dict:
+def getFalsePositiveData(type: str, age: str, requestConfigData: dict, GlobalConfigData: dict) -> dict:
     """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=false-positive
     :param type: The attribute type defined in the query
     :param age: The age defined in the query
@@ -332,20 +335,20 @@ def getFalsePositiveData(type: str, age: str, configData: dict) -> dict:
     """
     requestResponse = {}
     requestData = {}
-    requestData['mispURL'] = ("{0}://{1}:{2}".format(configData['requestConfig']['apiTokenProto'], configData['requestConfig']['apiTokenFQDN'], configData['requestConfig']['apiTokenPort']))
-    requestData['mispAuthKey'] = configData['requestConfig']['apiTokenAuthKey']
+    requestData['mispURL'] = ("{0}://{1}:{2}".format(requestConfigData['apiTokenProto'], requestConfigData['apiTokenFQDN'], requestConfigData['apiTokenPort']))
+    requestData['mispAuthKey'] = requestConfigData['apiTokenAuthKey']
     requestData['timestamp'] = dependencies.generateUnixTimeStamp( age )
-    requestData['tagNames'] = [configData['requestConfig']['config']['tag'] + ':incident-classification=false-positive']
-    requestData['mispVerifyCert'] = configData['requestConfig']['config']['mispVerifyCert']
-    requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
-    requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
-    requestData['dataTypes'] = configData['types'].get(type)
+    requestData['tagNames'] = [requestConfigData['config']['tag'] + ':incident-classification=false-positive']
+    requestData['mispVerifyCert'] = requestConfigData['config']['mispVerifyCert']
+    requestData['mispTimeoutSeconds'] = requestConfigData['config']['mispTimeoutSeconds']    
+    requestData['mispDebug'] = requestConfigData['config']['mispDebug']
+    requestData['dataTypes'] = GlobalConfigData['types'].get(type)
     requestData['body'] = feedDefineMISPSearch('falsepositive', requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)    
 
 
-def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict) -> dict:
+def get_feeds_data(feed: str, type: str, age: str, output: str, requestConfigData: dict, GlobalConfigData: dict) -> dict:
     """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=feed
     :param feed: The feed to be searched
     :param type: The attribute type defined in the query
@@ -356,21 +359,21 @@ def get_feeds_data(feed: str, type: str, age: str, output: str, configData: dict
     """
     requestResponse = {}
     requestData = {}
-    requestData['mispURL'] = ("{0}://{1}:{2}".format(configData['requestConfig']['apiTokenProto'], configData['requestConfig']['apiTokenFQDN'], configData['requestConfig']['apiTokenPort']))
-    requestData['mispAuthKey'] = configData['requestConfig']['apiTokenAuthKey']
+    requestData['mispURL'] = ("{0}://{1}:{2}".format(requestConfigData['apiTokenProto'], requestConfigData['apiTokenFQDN'], requestConfigData['apiTokenPort']))
+    requestData['mispAuthKey'] = requestConfigData['apiTokenAuthKey']
     requestData['timestamp'] = dependencies.generateUnixTimeStamp( age )
-    requestData['tagNames'] = getFeedNameToTag(configData['requestConfig']['config']['tag'], configData['requestConfig']['config']['custom_feeds'])
-    requestData['mispVerifyCert'] = configData['requestConfig']['config']['mispVerifyCert']
-    requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
-    requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
-    requestData['dataTypes'] = configData['types'].get(type)
-    requestData['ignore_to_ids'] = configData['requestConfig']['config']['ignore_to_ids']
+    requestData['tagNames'] = getFeedNameToTag(requestConfigData['config']['tag'], requestConfigData['config']['custom_feeds'])
+    requestData['mispVerifyCert'] = requestConfigData['config']['mispVerifyCert']
+    requestData['mispTimeoutSeconds'] = requestConfigData['config']['mispTimeoutSeconds']    
+    requestData['mispDebug'] = requestConfigData['config']['mispDebug']
+    requestData['dataTypes'] = GlobalConfigData['types'].get(type)
+    requestData['ignore_to_ids'] = requestConfigData['config']['ignore_to_ids']
     requestData['body'] = feedDefineMISPSearch(feed, requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)
 
 
-def get_organization_data(uuid: str, type: str, age: str, output: str, configData: dict) -> dict:
+def get_organization_data(uuid: str, type: str, age: str, output: str, requestConfigData: dict, GlobalConfigData: dict) -> dict:
     """ The following function fetches a list of attributes of a specific type and age, where there is a <pre tag>:incident-classification=feed
     :param uuid: The organization data to be searched
     :param type: The attribute type defined in the query
@@ -381,15 +384,15 @@ def get_organization_data(uuid: str, type: str, age: str, output: str, configDat
     """
     requestResponse = {}
     requestData = {}
-    requestData['mispURL'] = ("{0}://{1}:{2}".format(configData['requestConfig']['apiTokenProto'], configData['requestConfig']['apiTokenFQDN'], configData['requestConfig']['apiTokenPort']))
-    requestData['mispAuthKey'] = configData['requestConfig']['apiTokenAuthKey']
+    requestData['mispURL'] = ("{0}://{1}:{2}".format(requestConfigData['apiTokenProto'], requestConfigData['apiTokenFQDN'], requestConfigData['apiTokenPort']))
+    requestData['mispAuthKey'] = requestConfigData['apiTokenAuthKey']
     requestData['timestamp'] = dependencies.generateUnixTimeStamp( age )
-    requestData['tagNames'] = getFeedNameToTag(configData['requestConfig']['config']['tag'], configData['requestConfig']['config']['custom_feeds'])
-    requestData['mispVerifyCert'] = configData['requestConfig']['config']['mispVerifyCert']
-    requestData['mispTimeoutSeconds'] = configData['requestConfig']['config']['mispTimeoutSeconds']    
-    requestData['mispDebug'] = configData['requestConfig']['config']['mispDebug']
-    requestData['dataTypes'] = configData['types'].get(type)
-    requestData['ignore_to_ids'] = configData['requestConfig']['config']['ignore_to_ids']
+    requestData['tagNames'] = getFeedNameToTag(requestConfigData['config']['tag'], requestConfigData['config']['custom_feeds'])
+    requestData['mispVerifyCert'] = requestConfigData['config']['mispVerifyCert']
+    requestData['mispTimeoutSeconds'] = requestConfigData['config']['mispTimeoutSeconds']    
+    requestData['mispDebug'] = requestConfigData['config']['mispDebug']
+    requestData['dataTypes'] = GlobalConfigData['types'].get(type)
+    requestData['ignore_to_ids'] = requestConfigData['config']['ignore_to_ids']
     requestData['body'] = organizationDefineMISPSearch(uuid, requestData)
     requestResponse = misp.mispSearchAttributesSimpel(requestData)
     return (requestResponse)
