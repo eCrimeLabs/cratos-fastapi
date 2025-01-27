@@ -282,6 +282,17 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
         content={"message": str(exc)},
     )
 
+
+@app.get("/robots.txt", include_in_schema=False)
+async def get_robots_txt():
+    """
+    Generate a robots.txt file to ensure that the application is not indexed by search engines
+    """    
+    return PlainTextResponse(
+        "User-agent: *\nDisallow: /",
+        status_code=200
+    )
+
 @app.get("/", include_in_schema=False)
 async def homepage(request: Request, user_agent: Annotated[str | None, Header()] = None):
     """
