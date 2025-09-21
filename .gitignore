@@ -171,3 +171,4 @@ cratos_error_log.txt
 .vscode/settings.json
 static/redoc/redoc.standalone.js.org
 tests/get_audit_logs.py
+secrets.txt
