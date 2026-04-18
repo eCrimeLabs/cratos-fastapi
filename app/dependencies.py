@@ -27,7 +27,7 @@ configCore = GLOBALCONFIG
 _memcache_client = None
 
 
-def get_memcache_client():
+def getMemcacheClient():
     """Get or create memcache client with connection pooling"""
     global _memcache_client
     if _memcache_client is None:
@@ -414,7 +414,7 @@ def memcacheAddData(dataKey: str, dataValue: str, dataExpire: int) -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = get_memcache_client()
+        mc = getMemcacheClient()
         mcBool = mc.set(dataKey, dataValue, dataExpire)
         if (mcBool):
             return(True)
@@ -438,7 +438,7 @@ def memcacheGetData(dataKey: str, outputType: str) -> dict:
         'json': 'application/json'
     }
     try:
-        mc = get_memcache_client()
+        mc = getMemcacheClient()
         dataOutput = mc.get(str(dataKey))
         if dataOutput is None:
             returnValue['cacheHit'] = False
@@ -460,7 +460,7 @@ def memcacheDeleteData(dataKey: str) -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = get_memcache_client()
+        mc = getMemcacheClient()
         mcBool = mc.delete(dataKey)
         if (mcBool):
             return(True)
@@ -475,7 +475,7 @@ def memcacheFlushAllData() -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = get_memcache_client()
+        mc = getMemcacheClient()
         mcBool = mc.flush_all(time=0)
         if (mcBool):
             return(True)
