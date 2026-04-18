@@ -253,7 +253,21 @@ def orgConfigExtraction(decryptedConfigToken: str) -> dict:
         if not (tokenExpiration['status']):
             return(tokenExpiration)
 
-        configFilePath = os.path.join('sites', f"{configData['apiTokenFQDN']}.yaml")
+        # Sanitize FQDN to prevent path traversal - strip any directory components
+        sanitized_fqdn = os.path.basename(configData['apiTokenFQDN'])
+        
+        # Validate sanitized FQDN doesn't contain path separators
+        if '/' in sanitized_fqdn or '\\' in sanitized_fqdn or '..' in sanitized_fqdn:
+            return {'status': False, 'detail': 'Invalid FQDN format in token'}
+        
+        configFilePath = os.path.join('sites', f"{sanitized_fqdn}.yaml")
+        
+        # Verify the resolved path is within the sites directory
+        sites_dir = os.path.abspath('sites')
+        resolved_path = os.path.abspath(configFilePath)
+        if not resolved_path.startswith(sites_dir + os.sep):
+            return {'status': False, 'detail': 'Invalid configuration file path'}
+        
         if not os.path.exists(configFilePath):
             return {'status': False, 'detail': 'Token config file not found'}
         
