@@ -29,7 +29,7 @@ def schemaValidator(yamlFile: str, schemaFile: str) -> bool:
     try:
         yamale.validate(schema, data)
         return(True)
-    except ValueError as e:
+    except (ValueError, yamale.YamaleError) as e:
         print('Validation failed!\n%s' % str(e))
         return(False)
 

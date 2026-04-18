@@ -53,6 +53,8 @@ class ModelDataType(str, Enum):
     hashSevrerMD5 = "hasshserver-md5"
     imphash = "imphash"
     cryptoCurr = "crypto-currency"
+    chromeExtensionID = "chrome-extension-id"
+    edgeExtensionID = "edge-extension-id"
 
 
 class ModelOutputType(str, Enum):

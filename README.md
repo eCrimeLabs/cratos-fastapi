@@ -3,11 +3,19 @@
 
 -------------------------------------------
 
-[MISP Threat Sharing Platform](https://misp-project.org/) is an amazing platform for collecting and maintaining your CTI/Incident Response findings and context, but is can also be useful in daily hunting engagements, incident repone cases, standard SecOps and other scenarios; without giving your infrastructure, outsourcing partners access access to context from MISP.
+[MISP Threat Sharing Platform](https://misp-project.org/) is an amazing platform for collecting and maintaining your CTI/Incident Response findings and context, but is can also be useful in daily hunting engagements, incident response cases, standard SecOps and other scenarios; without giving your infrastructure, outsourcing partners access to context from MISP.
 
 The CRATOS proxy API integrates with one or more MISP instances and allows to extract indicators that can be consumed by security components such as SIEM, DNS, Proxies, Firewalls, EDR, NDR and other that can consume a file with indicators.
 
-Using the CRATOS API it also ensures that indicators are sharable but you will not leak the context or need to give permissions to your MISP instance, and thereby being able to share these indicators in environments where you want to protect your data more. 
+Using the CRATOS API it also ensures that indicators are sharable but you will not leak the context or need to give permissions to your MISP instance, and thereby being able to share these indicators in environments where you want to protect your data more.
+
+## Key Features
+
+- **Memory Management**: Automatic garbage collection and worker recycling to prevent memory leaks
+- **Connection Pooling**: Optimized memcached connection pooling for better performance
+- **Security**: SHA-256 hashing for cache keys, encrypted API tokens
+- **Scalability**: Auto-scaling workers based on CPU count with Gunicorn
+- **Production Ready**: Comprehensive error handling and logging 
 
 # Comon Usecases
 The below is just inspiration and you can ingest the data where applicable.
@@ -31,9 +39,13 @@ The below guide has been tested and validated on Debian and Ubuntu, it is recomm
 We recommend to git clone the Cratos FastAPI into the system to more easily be able to update when updates arrive.
 
 ```bash 
-$ sudo apt install git 
+$ sudo apt install git python3-venv python3-pip memcached
 $ cd /opt
 $ git clone https://github.com/eCrimeLabs/cratos-fastapi.git
+$ cd cratos-fastapi
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+$ pip install -r requirements.txt
 ```
 
 ## Cratos FastAPI Configurable Files
@@ -44,6 +56,7 @@ We will start here as the dependencies to the code running will be used later.
 | -------------------- | ------------------------------------------------------------------- |
 | log_conf.yaml        | This is the logging configuration file for uvicorn                  |
 | config/config.yaml   | Contains the core configurations                                    |
+| gunicorn_config.py   | Production-ready Gunicorn configuration with memory management      |
 | sites/\<fqdn\>.yaml  | This contains the configuration files related to each MISP instance |
 
 ### config/config.yaml ####
@@ -72,6 +85,13 @@ memcached_user: ""
 memcached_pass: ""
 memcached_host: "127.0.0.1"
 memcached_port: "11211"
+access_log: "cratos_access.log"
+access_log_max_bytes: 10
+access_log_rotations: 5
+reverse_proxy: False
+reverse_proxy_header: "X-Forwarded-For"
+reverse_proxy_real_ip_regex: "^(.*)$"
+reverse_proxy_regex_place: 1
 allways_allowed_ips:
   - "100.64.3.0/24"
   - "10.0.0.0/8"
@@ -80,7 +100,13 @@ allways_allowed_ips:
 
 ```
 
-***NOTICE: The "allways_allowed_ips" is globally set for all sites, these will typically be your monitoring setup to ensure that the service is running, the site specific if defined further down.***
+**Configuration Notes:**
+- `access_log`: Path to access log file
+- `access_log_max_bytes`: Maximum log file size in MB before rotation
+- `access_log_rotations`: Number of backup log files to keep
+- `reverse_proxy`: Set to `True` if behind a reverse proxy (nginx, Apache, etc.)
+- `reverse_proxy_header`: Header containing real client IP (commonly "X-Forwarded-For" or "X-Real-IP")
+- `allways_allowed_ips`: Globally allowed IPs for all sites (typically monitoring systems)
 
 ## Configuring your first MISP connection config
 
@@ -256,6 +282,63 @@ cp INSTALLATION/gunicorn.service_example /etc/systemd/system/gunicorn.service
 sudo systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl enable gunicorn
+```
+
+### Gunicorn Configuration
+
+CRATOS FastAPI includes an optimized `gunicorn_config.py` with the following production-ready features:
+
+- **Memory Management**: Workers automatically restart after 250 requests to prevent memory leaks
+- **Worker Configuration**: 6 workers by default (adjust based on your server capacity)
+- **Proxy Support**: Configured for use behind reverse proxies (nginx, Apache)
+- **Logging**: Errors logged to `/var/log/cratos/general.log`, access logs to stdout
+- **Port**: Binds to `0.0.0.0:8080` by default
+
+**Important Configuration Options in `gunicorn_config.py`:**
+
+```python
+workers = 6                    # Number of worker processes
+bind = "0.0.0.0:8080"         # IP and port to bind
+max_requests = 250             # Restart worker after this many requests
+max_requests_jitter = 15       # Randomize restart to avoid simultaneous restarts
+errorlog = '/var/log/cratos/general.log'  # Error log location
+forwarded_allow_ips = '*'      # Allow all IPs for proxy headers
+proxy_protocol = True          # Enable PROXY protocol
+chdir = '/opt/cratos-fastapi'  # Working directory
+reload = False                 # Set to True for development auto-reload
+```
+
+**Create log directory:**
+
+```bash
+sudo mkdir -p /var/log/cratos
+sudo chown fastapi:fastapi /var/log/cratos
+```
+
+To use the configuration:
+
+```bash
+# Using the config file (recommended)
+/opt/cratos-fastapi/.venv/bin/gunicorn app.main:app --config /opt/cratos-fastapi/gunicorn_config.py
+
+# Or with command-line options (legacy method)
+/opt/cratos-fastapi/.venv/bin/gunicorn -w 6 -b 0.0.0.0:8080 -k uvicorn.workers.UvicornWorker app.main:app \
+  --error-logfile /var/log/cratos/general.log \
+  --forwarded-allow-ips '*' \
+  --proxy-protocol \
+  --chdir /opt/cratos-fastapi \
+  --max-requests 250 \
+  --max-requests-jitter 15
+```
+
+Or update your systemd service file to reference the config:
+
+```ini
+[Service]
+User=fastapi
+Group=fastapi
+WorkingDirectory=/opt/cratos-fastapi
+ExecStart=/opt/cratos-fastapi/.venv/bin/gunicorn app.main:app --config /opt/cratos-fastapi/gunicorn_config.py
 ```
 
 # Everything is working

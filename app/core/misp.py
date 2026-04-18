@@ -117,7 +117,7 @@ def mispGETRequest(url: str, headers: dict, timeout: int, verify: bool) -> dict:
             requestResponse['encoding'] = r.encoding
             requestResponse['content'] = r.text
             return(requestResponse)              
-    except:
+    except (ValueError, KeyError, AttributeError) as e:
         requestResponse['status'] = False
         requestResponse['error_num'] = 5
         requestResponse['error'] = ("MISP - Parsing error")

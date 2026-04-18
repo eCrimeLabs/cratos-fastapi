@@ -23,6 +23,22 @@ logger = logging.getLogger(__name__)
 from app.config import GLOBALCONFIG
 configCore = GLOBALCONFIG
 
+# Global memcached client for connection pooling
+_memcache_client = None
+
+
+def get_memcache_client():
+    """Get or create memcache client with connection pooling"""
+    global _memcache_client
+    if _memcache_client is None:
+        _memcache_client = bmemcached.Client(
+            configCore['memcached_host'] + ':' + str(configCore['memcached_port']),
+            configCore['memcached_user'],
+            configCore['memcached_pass']
+        )
+        _memcache_client.enable_retry_delay(False)
+    return _memcache_client
+
 
 def base64List(listData: list) -> list:
     """ Recieves a list of string values converts every entry into base64 and returns this in a list.
@@ -36,46 +52,56 @@ def base64List(listData: list) -> list:
     return (listOutput)
 
 
-def cidrToIPs(cidr):
-    ips = ip_network(cidr)
-    return [str(ip) for ip in ips]
+def cidrToIPs(cidr: str) -> list:
+    """ Convert CIDR notation to a list of IP addresses
+    :param cidr: CIDR notation string (e.g., '192.168.1.0/24')
+    :return: List of IP addresses as strings
+    """
+    try:
+        ips = ip_network(cidr)
+        return [str(ip) for ip in ips]
+    except ValueError as e:
+        logger.error(f"Invalid CIDR notation: {cidr} - {str(e)}")
+        return []
 
 
 def generateUnixTimeStamp(age: str) -> int:
     """ Recieves a rerepresentation of time 1h, 2h, 1d, etc. that is converted into unixtimestamp
     :param age: This is a rerepresentation of time 1h, 2h, 1d, etc.
     :return: Integer of the timestamp.
+    :raises ValueError: If age format is invalid
     """
     now = datetime.now()
     match = re.search("^([0-9]{1,5})([hdwmy]{1})$", age, re.MULTILINE)
-    if match:
-        ageNumber = match.group(1)
-        ageType = match.group(2)
-        if (ageType == 'h'):
-            searchTime = now - relativedelta(hours=int(ageNumber))
-        elif (ageType == 'd'):
-            searchTime = now - relativedelta(days=int(ageNumber))
-        elif (ageType == 'w'):
-            searchTime = now - relativedelta(weeks=int(ageNumber))
-        elif (ageType == 'm'):
-            searchTime = now - relativedelta(months=int(ageNumber))
-        elif (ageType == 'y'):
-            searchTime = now - relativedelta(years=int(ageNumber))
-        else:
-            searchTime = now - relativedelta(hours=1)
-        return (int(searchTime.timestamp()))
+    if not match:
+        raise ValueError(f"Invalid age format: {age}. Expected format: <number><h|d|w|m|y>")
+    
+    ageNumber = int(match.group(1))
+    ageType = match.group(2)
+    
+    time_deltas = {
+        'h': relativedelta(hours=ageNumber),
+        'd': relativedelta(days=ageNumber),
+        'w': relativedelta(weeks=ageNumber),
+        'm': relativedelta(months=ageNumber),
+        'y': relativedelta(years=ageNumber)
+    }
+    
+    searchTime = now - time_deltas.get(ageType, relativedelta(hours=1))
+    return int(searchTime.timestamp())
 
 
 def isValidJSON(inputJSON: str) -> bool:
     """ Recieves json string as input, and performs initial validation, of the format.
-    :param age: Valid JSON string
+    :param inputJSON: JSON string to validate
     :return: Boolean of if the JSON is valid or not
     """
     try:
         json.loads(inputJSON)
-    except ValueError:
+        return True
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
+        logger.debug(f"Invalid JSON: {str(e)}")
         return False
-    return True
 
 
 def isTokenExpired(dateString: str) -> dict:
@@ -227,21 +253,21 @@ def orgConfigExtraction(decryptedConfigToken: str) -> dict:
         if not (tokenExpiration['status']):
             return(tokenExpiration)
 
+        configFilePath = os.path.join('sites', f"{configData['apiTokenFQDN']}.yaml")
+        if not os.path.exists(configFilePath):
+            return {'status': False, 'detail': 'Token config file not found'}
+        
         try:
-            keyExists = os.path.exists(os.path.join('sites', str(configData['apiTokenFQDN']) + '.yaml'))
-            if (keyExists):
-                with open('sites/' + configData['apiTokenFQDN'] + '.yaml', 'r') as f:
-                    configData['config'] = yaml.safe_load(f)
-                    configData['status'] = True
-                    return(configData)
-            else:
-                returnValue = {'status': False, 'detail': 'Token config file not found'}
-            return(returnValue)
-        except Exception:
-            returnValue = {'status': False, 'detail': 'Configuraiton file was not identified or could not be loaded.'}
-    except Exception:
-        returnValue = {'status': False, 'detail': 'Error in Token Config extraction.'}
-        return(returnValue)
+            with open(configFilePath, 'r') as f:
+                configData['config'] = yaml.safe_load(f)
+                configData['status'] = True
+                return configData
+        except (IOError, yaml.YAMLError) as e:
+            logger.error(f"Error loading configuration file: {str(e)}")
+            return {'status': False, 'detail': 'Configuration file was not identified or could not be loaded.'}
+    except (ValueError, KeyError, IndexError) as e:
+        logger.error(f"Error in token config extraction: {str(e)}")
+        return {'status': False, 'detail': 'Error in Token Config extraction.'}
 
 
 def validateStringBool(plainText: str) -> bool:
@@ -327,8 +353,18 @@ def decryptString(token: str, salt: str, password: str) -> dict:
     return(returnData)
 
 
+def sha256HashCacheKey(inputString: str) -> str:
+    """ Generate SHA-256 hash key based on request data to be used in Memcached
+    : param inputString: String content related to the requested data
+    : return: Returns a string with a SHA-256 checksum (64 bytes)
+    """
+    result = hashlib.sha256(inputString.encode())
+    return(result.hexdigest())
+
+
 def md5HashCacheKey(inputString: str) -> str:
     """ Generate MD5Hash key based on request data to used in Memcached
+    DEPRECATED: Use sha256HashCacheKey instead for better security
     : param inputString: String content related to the requested data
     : return: Returns a string with a MD5 Checksum (32 bytes)
     """
@@ -364,22 +400,19 @@ def memcacheAddData(dataKey: str, dataValue: str, dataExpire: int) -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = bmemcached.Client(configCore['memcached_host'] + ':' + str(configCore['memcached_port']),
-                               configCore['memcached_user'],
-                               configCore['memcached_pass']
-                               )
-        mc.enable_retry_delay(False)
+        mc = get_memcache_client()
         mcBool = mc.set(dataKey, dataValue, dataExpire)
         if (mcBool):
             return(True)
         return(False)
-    except Exception:
+    except (ConnectionError, TimeoutError, KeyError) as e:
+        logger.error(f"Memcache error in memcacheAddData: {str(e)}")
         return(False)
 
 
 def memcacheGetData(dataKey: str, outputType: str) -> dict:
     """ Get data to Memcache for cached responses, if avaliable
-    :param dataKey: The unique data key (a MD5 checksum of the request and Api Token)
+    :param dataKey: The unique data key (a SHA-256 checksum of the request and Api Token)
     :param outputType: Define the output type in the event that there is a hit in the caching.
     :return: Dict of data from Memcached database if present.
     """
@@ -391,11 +424,7 @@ def memcacheGetData(dataKey: str, outputType: str) -> dict:
         'json': 'application/json'
     }
     try:
-        mc = bmemcached.Client(configCore['memcached_host'] + ':' + str(configCore['memcached_port']),
-                               configCore['memcached_user'],
-                               configCore['memcached_pass']
-                               )
-        mc.enable_retry_delay(False)
+        mc = get_memcache_client()
         dataOutput = mc.get(str(dataKey))
         if dataOutput is None:
             returnValue['cacheHit'] = False
@@ -405,7 +434,8 @@ def memcacheGetData(dataKey: str, outputType: str) -> dict:
             returnValue['content_type'] = contentType[outputType]
             returnValue['content'] = mc.get(str(dataKey))
         return(returnValue)
-    except Exception:
+    except (ConnectionError, TimeoutError, KeyError) as e:
+        logger.error(f"Memcache error in memcacheGetData: {str(e)}")
         returnValue['cacheHit'] = False
         return(returnValue)
 
@@ -416,16 +446,13 @@ def memcacheDeleteData(dataKey: str) -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = bmemcached.Client(configCore['memcached_host'] + ':' + str(configCore['memcached_port']),
-                               configCore['memcached_user'],
-                               configCore['memcached_pass']
-                               )
-        mc.enable_retry_delay(False)
+        mc = get_memcache_client()
         mcBool = mc.delete(dataKey)
         if (mcBool):
             return(True)
         return(False)
-    except Exception:
+    except (ConnectionError, TimeoutError, KeyError) as e:
+        logger.error(f"Memcache error in memcacheDeleteData: {str(e)}")
         return(False)
 
 
@@ -434,15 +461,12 @@ def memcacheFlushAllData() -> bool:
     :return: Returns a boolean based on either success(True) or Failure(False) of the action.
     """
     try:
-        mc = bmemcached.Client(configCore['memcached_host'] + ':' + str(configCore['memcached_port']),
-                               configCore['memcached_user'],
-                               configCore['memcached_pass']
-                               )
-        mc.enable_retry_delay(False)
+        mc = get_memcache_client()
         mcBool = mc.flush_all(time=0)
         if (mcBool):
             return(True)
         return(False)
-    except Exception:
+    except (ConnectionError, TimeoutError, KeyError) as e:
+        logger.error(f"Memcache error in memcacheFlushAllData: {str(e)}")
         return(False)
 

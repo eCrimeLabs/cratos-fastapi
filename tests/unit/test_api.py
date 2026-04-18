@@ -6,10 +6,8 @@ import yaml
 import time
 from defusedxml import ElementTree as DefusedET
 from app.models.models import ModelDataType, ModelFeedName, ModelOutputType, ModelVendorName
-from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 import random
-import pprint
 import logging
 
 # Configure logging
@@ -28,7 +26,8 @@ ORGUUID = ['55f6ea5e-2c60-40e5-964f-47a8950d210f', '569b6c1f-bd1c-49c8-9244-0484
 client = TestClient(app)
 
 percentage = int(PERCENTAGE_DATATYPE.rstrip('%')) / 100
-sample_size = int(len(ModelDataType) * percentage)
+# Ensure at least 1 sample to avoid division by zero
+sample_size = max(1, int(len(ModelDataType) * percentage))
 samplingModelDataTypes = random.sample([e.value for e in ModelDataType], sample_size)
 
 def test_root():
@@ -67,70 +66,56 @@ def test_openapi():
 
 @pytest.mark.parametrize("feedName,dataType,dataAge,returnedDataType", product([e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_feeds_data(feedName, dataType, dataAge, returnedDataType):
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = [executor.submit(client.get, f"/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)]
-        for future in futures:
-            start_time = time.time()
-            response = future.result()
-            content = response.content
-            end_time = time.time()
-            logger.info(f"Request and response time: {end_time - start_time} seconds")
-            assert response.status_code == 200
+    start_time = time.time()
+    response = client.get(f"/v1/feed/{feedName}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)
+    end_time = time.time()
+    logger.info(f"Request and response time: {end_time - start_time:.3f} seconds")
+    assert response.status_code == 200
 
-            if returnedDataType == "json":
-                try:
-                    json.loads(content)
-                except json.JSONDecodeError:
-                    pytest.fail("Invalid JSON")
-            elif returnedDataType == "yaml":
-                try:
-                    yaml.safe_load(content)
-                except yaml.YAMLError:
-                    pytest.fail("Invalid YAML")
-            elif returnedDataType == "xml":
-                try:
-                    DefusedET.fromstring(content)
-                except DefusedET.ParseError:
-                    pytest.fail("Invalid XML")
+    if returnedDataType == "json":
+        try:
+            json.loads(response.content)
+        except json.JSONDecodeError:
+            pytest.fail("Invalid JSON")
+    elif returnedDataType == "yaml":
+        try:
+            yaml.safe_load(response.content)
+        except yaml.YAMLError:
+            pytest.fail("Invalid YAML")
+    elif returnedDataType == "xml":
+        try:
+            DefusedET.fromstring(response.content)
+        except DefusedET.ParseError:
+            pytest.fail("Invalid XML")
 
 @pytest.mark.parametrize("orgUUID,dataType,dataAge,returnedDataType", product(ORGUUID, samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = [executor.submit(client.get, f"/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)]
-        for future in futures:
-            start_time = time.time()
-            response = future.result()
-            content = response.content
-            end_time = time.time()
-            logger.info(f"Request and response time: {end_time - start_time} seconds")
-            assert response.status_code == 200
+    start_time = time.time()
+    response = client.get(f"/v1/uuid/{orgUUID}/type/{dataType}/age/{dataAge}/output/{returnedDataType}", headers=TOKEN_HEADER)
+    end_time = time.time()
+    logger.info(f"Request and response time: {end_time - start_time:.3f} seconds")
+    assert response.status_code == 200
 
-            if returnedDataType == "json":
-                try:
-                    json.loads(content)
-                except json.JSONDecodeError:
-                    pytest.fail("Invalid JSON")
-            elif returnedDataType == "yaml":
-                try:
-                    yaml.safe_load(content)
-                except yaml.YAMLError:
-                    pytest.fail("Invalid YAML")
-            elif returnedDataType == "xml":
-                try:
-                    DefusedET.fromstring(content)
-                except DefusedET.ParseError:
-                    pytest.fail("Invalid XML")
+    if returnedDataType == "json":
+        try:
+            json.loads(response.content)
+        except json.JSONDecodeError:
+            pytest.fail("Invalid JSON")
+    elif returnedDataType == "yaml":
+        try:
+            yaml.safe_load(response.content)
+        except yaml.YAMLError:
+            pytest.fail("Invalid YAML")
+    elif returnedDataType == "xml":
+        try:
+            DefusedET.fromstring(response.content)
+        except DefusedET.ParseError:
+            pytest.fail("Invalid XML")
 
 @pytest.mark.parametrize("vendorName,feedName,dataType,dataAge", product([e.value for e in ModelVendorName], [e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE))
 def test_get_vendor_feeds_data(vendorName, feedName, dataType, dataAge):
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = [executor.submit(client.get, f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", headers=TOKEN_HEADER)]
-        pprint.pprint(futures)
-        for future in futures:
-            start_time = time.time()
-            response = future.result()
-            content = response.content
-            end_time = time.time()
-            logger.info(f"Request and response time: {end_time - start_time} seconds")
-            logger.info(f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
-            assert response.status_code == 200
+    start_time = time.time()
+    response = client.get(f"/v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}", headers=TOKEN_HEADER)
+    end_time = time.time()
+    logger.info(f"Request and response time: {end_time - start_time:.3f} seconds - /v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
+    assert response.status_code == 200

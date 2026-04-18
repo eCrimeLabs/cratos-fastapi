@@ -272,7 +272,9 @@ def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
         'hassh-md5': r'([a-f0-9]{32})',
         'hasshserver-md5': r'([a-f0-9]{32})',
         'imphash': r'([a-f0-9]{32})',
-        'crypto-currency': r'((^([13][a-km-zA-HJ-NP-Z0-9]{26,33})$)|(^()(4|8)?[0-9A-Z]{1}[0-9a-zA-Z]{93}([0-9a-zA-Z]{11})?)$)'
+        'crypto-currency': r'((^([13][a-km-zA-HJ-NP-Z0-9]{26,33})$)|(^()(4|8)?[0-9A-Z]{1}[0-9a-zA-Z]{93}([0-9a-zA-Z]{11})?)$)',
+        'chrome-extension-id': r'([a-p]{32})',
+        'edge-extension-id': r'([a-p]{32})'
     }
 
     returnData = []

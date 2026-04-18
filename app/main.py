@@ -36,6 +36,8 @@ import pprint
 import logging
 from logging.handlers import RotatingFileHandler
 import time
+import gc
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +52,11 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.5"
+CRATOS_VERSION = "1.0.6"
 
+# Compile regex patterns at module level for better performance
+URL_PATTERN = re.compile(r'^https?:\/\/[^\/]+(\/.*)$')
+TOKEN_PATTERN = re.compile(r"token=[^&]+")
 
 
 description = """
@@ -172,32 +177,48 @@ async def log_requests(request: Request, call_next):
     process_time = time.time() - start_time
     
     method = request.method
-    request_path = request.url.path
     status_code = response.status_code
     content_length = response.headers.get('content-length', 0)
     http_version = request.scope.get('http_version', '1.1')
 
-    # Regular expression pattern for the URL
-    pattern = re.compile(r'^https?:\/\/[^\/]+(\/.*)$')
-    match = pattern.match(str(request.url))
+    # Use pre-compiled regex patterns for better performance
+    match = URL_PATTERN.match(str(request.url))
     if match:
         url = match.group(1)
     else:
-        url = request.url
+        url = str(request.url)
 
-    # Regular expression to match and anonymize token values, if present
-    token_regex = re.compile(r"token=[^&]+")
-
-    # Replace token values with a placeholder
-    url = token_regex.sub("token=ANONYMIZED", url)
+    # Replace token values with a placeholder using pre-compiled pattern
+    url = TOKEN_PATTERN.sub("token=ANONYMIZED", url)
 
     try:
-        if (request.state.configCore['apiTokenFQDN']):
+        if hasattr(request.state, 'configCore') and request.state.configCore.get('apiTokenFQDN'):
             apiTokenFQDN = request.state.configCore['apiTokenFQDN']
-    except:
+        else:
+            apiTokenFQDN = "No valid token set"
+    except (AttributeError, KeyError, TypeError):
         apiTokenFQDN = "No valid token set"
 
     logger.info(f'{client_ip} - "{apiTokenFQDN}" [{time.strftime("%d/%b/%Y:%H:%M:%S %z")}] "{method} {url} HTTP/{http_version}" {status_code} {content_length} "{request.headers.get("referer", "-")}" "{request.headers.get("user-agent", "-")}" {process_time:.2f}')
+    
+    return response
+
+@app.middleware("http")
+async def memory_monitor(request: Request, call_next):
+    """
+    Monitor memory usage and trigger garbage collection if needed
+    """
+    response = await call_next(request)
+    
+    # Get current memory usage
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    memory_mb = memory_info.rss / 1024 / 1024
+    
+    # Log if memory usage is high (threshold: 500MB, adjust as needed)
+    if memory_mb > 500:
+        logger.warning(f"High memory usage: {memory_mb:.2f} MB - triggering garbage collection")
+        gc.collect()
     
     return response
 
@@ -273,7 +294,22 @@ app.salt= app.configCore['salt'].encode()
 
 @app.on_event("startup")
 async def startup_event():
+    """
+    Initialize application resources on startup
+    """
+    logger.info("CRATOS FastAPI starting up...")
     return
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Cleanup resources on shutdown
+    """
+    # Force garbage collection
+    gc.collect()
+    
+    # Log shutdown
+    logger.info("Application shutting down, cleaning up resources...")
 
 @app.exception_handler(ValueError)
 async def value_error_exception_handler(request: Request, exc: ValueError):
@@ -575,8 +611,8 @@ async def delete_cached_feeds_data(
     
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
-    cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
-    cachingKeyFP = dependencies.md5HashCacheKey(dataType + api_key)
+    cachingKeyData = dependencies.sha256HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
+    cachingKeyFP = dependencies.sha256HashCacheKey(dataType + api_key)
     cacheResponse = dependencies.memcacheDeleteData(cachingKeyData)
     cacheResponse = dependencies.memcacheDeleteData(cachingKeyFP)
     return JSONResponse(content={"ok": True})
@@ -612,7 +648,7 @@ async def get_feeds_data(
     
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
-    cachingKeyData = dependencies.md5HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
+    cachingKeyData = dependencies.sha256HashCacheKey(feedName + dataType + dataAge + returnedDataType + api_key)
 
     cacheResponseData = dependencies.memcacheGetData(cachingKeyData, returnedDataType)
     if (cacheResponseData['cacheHit']):
@@ -671,7 +707,7 @@ async def get_vendor_data(
     
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
-    cachingKeyData = dependencies.md5HashCacheKey(vendorName + feedName + dataType + dataAge + api_key)
+    cachingKeyData = dependencies.sha256HashCacheKey(vendorName + feedName + dataType + dataAge + api_key)
 
     cacheResponseData = dependencies.memcacheGetData(cachingKeyData, 'txt')
     if (cacheResponseData['cacheHit']):
@@ -708,7 +744,7 @@ async def get_vendor_data(
          tags=["feed"], 
          summary="Get data related to MISP Organization UUID."
 )
-async def get_organizaiton_data(
+async def get_organization_data(
     request: Request,
     orgUUID: Annotated[str | None, Path(min_length=36, max_length=36, description="MISP Organization UUID", pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
@@ -734,7 +770,7 @@ async def get_organizaiton_data(
     
     :return: Returns data based upon the above parameters in the format specified in returnedDataType
     """
-    cachingKeyData = dependencies.md5HashCacheKey(orgUUID + dataType + dataAge + returnedDataType + api_key)
+    cachingKeyData = dependencies.sha256HashCacheKey(orgUUID + dataType + dataAge + returnedDataType + api_key)
 
     cacheResponseData = dependencies.memcacheGetData(cachingKeyData, returnedDataType)
     if (cacheResponseData['cacheHit']):
