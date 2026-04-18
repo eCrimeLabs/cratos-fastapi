@@ -63,7 +63,6 @@ description = """
 CRATOS - FastAPI proxy is your secure and optimized integration between your security infrastructure and your MISP Threat Sharing Platform.
 
 ## Feeds
-
 You can in a structured form **custom build** your threat feeds from MISP in the format you need for
 integrations into your security components, while also ensuring automated expiration of "old" data.
 
@@ -129,7 +128,7 @@ async def getApiToken(
 app.mount("/static", StaticFiles(directory="static"), name='static')
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def logRequest(request: Request, call_next):
     """ 
     It is essential that the FastAPI gets the real IP address of the visitor in order to do correct logging and validate the IP address
     in the config file it can be set if the application is behind a reverse proxy or not, this is also to ensure that an
@@ -204,7 +203,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 @app.middleware("http")
-async def memory_monitor(request: Request, call_next):
+async def memoryMonitor(request: Request, call_next):
     """
     Monitor memory usage and trigger garbage collection if needed
     """
@@ -223,7 +222,7 @@ async def memory_monitor(request: Request, call_next):
     return response
 
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def addSecurityHeaders(request: Request, call_next):
     """
     Adding security headers to the response to ensure that the application is not vulnerable to certain types of attacks.
     X-Frame-Options: DENY - This header is used to indicate whether or not a browser should be allowed to render a page in a <frame>, <iframe>, <embed> or <object>.
@@ -255,7 +254,7 @@ async def add_security_headers(request: Request, call_next):
         response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     return response
 
-def custom_openapi():
+def customOpenAPI():
     """
     Custom OpenAPI schema for the FastAPI application
     """
@@ -293,7 +292,7 @@ app.salt= app.configCore['salt'].encode()
 
 
 @app.on_event("startup")
-async def startup_event():
+async def startupEvent():
     """
     Initialize application resources on startup
     """
@@ -301,7 +300,7 @@ async def startup_event():
     return
 
 @app.on_event("shutdown")
-async def shutdown_event():
+async def shutdownEvent():
     """
     Cleanup resources on shutdown
     """
@@ -312,7 +311,7 @@ async def shutdown_event():
     logger.info("Application shutting down, cleaning up resources...")
 
 @app.exception_handler(ValueError)
-async def value_error_exception_handler(request: Request, exc: ValueError):
+async def valueErrorExceptionHandler(request: Request, exc: ValueError):
     return JSONResponse(
         status_code=400,
         content={"message": str(exc)},
@@ -320,7 +319,7 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
 
 
 @app.get("/robots.txt", include_in_schema=False)
-async def get_robots_txt():
+async def getRobotsTxt():
     """
     Generate a robots.txt file to ensure that the application is not indexed by search engines
     """    
@@ -372,12 +371,12 @@ async def pong(request: Request):
          summary="UI based access to generate the Auth keys",
          description="This provides a UI interface to generate the auth keys based on information from your MISP instance."         
 )
-def form_post(request: Request):
+def formPost(request: Request):
     result = "Type a number"
     return templates.TemplateResponse(request=request, name='generate_token_form.html', context={'request': request, 'result': result})
 
 @app.post("/v1/generate_token_form", tags=["authentication"], include_in_schema=False)
-def form_post_form(request: Request, expire: str = Form(...), port: str = Form(...), proto: str = Form(...), domain: str = Form(...),  auth: str = Form(...)):
+def formPostForm(request: Request, expire: str = Form(...), port: str = Form(...), proto: str = Form(...), domain: str = Form(...),  auth: str = Form(...)):
     inputData = str(proto) + ";" + str(port) + ";" + str(domain) + ";" + str(auth) + ";" + str(expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
 
@@ -387,7 +386,7 @@ def form_post_form(request: Request, expire: str = Form(...), port: str = Form(.
 @app.post("/v1/generate_token_json", 
           tags=["authentication"]
           )
-def form_post_json(
+def formPostJson(
     item: models.formAuthGenItem
     ):
     """ 
@@ -408,7 +407,7 @@ def form_post_json(
     return authKeyToken
 
 @app.get("/v1/openapi.json", tags=["documentations"])
-async def get_open_api_endpoint():
+async def getOpenApiEndpoint():
     response = JSONResponse(
         get_openapi(title="CRATOS - FastAPI proxy", version=CRATOS_VERSION, routes=app.routes)
     )
@@ -427,7 +426,7 @@ async def get_open_api_endpoint():
 @app.get("/v1/help", 
          tags=["documentations"]
          )
-async def get_documentation():
+async def getDocumentation():
     """ 
     The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to HTTP APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection.
 
@@ -445,7 +444,7 @@ async def get_documentation():
     return response
 
 @app.get("/redoc", include_in_schema=False)
-async def redoc_html():
+async def redocHtml():
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=app.title + " - ReDoc",
@@ -457,7 +456,7 @@ async def redoc_html():
 @app.get("/v1/check", 
          tags=["status"]
          )
-async def check_misp_connection(request: Request, api_key: APIKey = Depends(getApiToken)):
+async def checkMispConnection(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     Check the connection status to the MISP instance
 
@@ -487,7 +486,7 @@ async def check_misp_connection(request: Request, api_key: APIKey = Depends(getA
          tags=["info"], 
          summary="Get attribute type statistics from the MISP"
 )
-async def get_misp_statistics(request: Request, api_key: APIKey = Depends(getApiToken)):
+async def getMispStatistics(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     Get statistical data from the MISP instance, related to the numbers based on attribute types.
 
@@ -516,7 +515,7 @@ async def get_misp_statistics(request: Request, api_key: APIKey = Depends(getApi
          tags=["info"], 
          summary="Get lists and content of Warning lists from MISP"
 )
-async def get_misp_warninglist(
+async def getMispWarninglist(
     *,
     warninglistId: int = Path(title="The ID of the Warninglist to show, 0 lists avaliable Warninglists", ge=0, le=1000),
     returnedDataType: Annotated[models.ModelOutputWarninglists, Path(description="Defines the output that the feed will be presented in.")],
@@ -558,7 +557,7 @@ async def get_misp_warninglist(
          summary="Get the mapping of the Cratos feeds to the tags in MISP.",
          response_class=PlainTextResponse
          )
-async def check_misp_connection(request: Request, api_key: APIKey = Depends(getApiToken)):
+async def checkMispConnection(request: Request, api_key: APIKey = Depends(getApiToken)):
     """ 
     This will display the mapping between the Cratos feeds and to the tags in MISP
 
@@ -588,7 +587,7 @@ async def check_misp_connection(request: Request, api_key: APIKey = Depends(getA
          tags=["feed"], 
          summary="Delete cached data related to specific feed"
 )
-async def delete_cached_feeds_data(
+async def deleteCachedFeedsData(
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
     dataAge: Annotated[models.ModuleOutputAge, Path(description="Expiration of data is essential of any threat feeds, the age is based on the attribute creation or modification data.")],
@@ -622,7 +621,7 @@ async def delete_cached_feeds_data(
          tags=["feed"], 
          summary="Gather data from MISP typically based on tags and return in structured formats."
 )
-async def get_feeds_data(
+async def getFeedsData(
     request: Request,
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
@@ -681,7 +680,7 @@ async def get_feeds_data(
          tags=["vendors"], 
          summary="Returns the feed data from MISP in a structured format for a specific vendors.",
 )
-async def get_vendor_data(
+async def getVendorData(
     request: Request,
     vendorName: Annotated[models.ModelVendorName, Path(description="The vendor name will return the output in a specific vendor based format.")],
     feedName: Annotated[models.ModelFeedName, Path(description="The feed names excl. 'any' and '42' is is mapped to a tag that has been added on either event(s) or attribute(s).")],
@@ -744,7 +743,7 @@ async def get_vendor_data(
          tags=["feed"], 
          summary="Get data related to MISP Organization UUID."
 )
-async def get_organization_data(
+async def getOrganizationData(
     request: Request,
     orgUUID: Annotated[str | None, Path(min_length=36, max_length=36, description="MISP Organization UUID", pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')],
     dataType: Annotated[models.ModelDataType, Path(description="Defines the type of data that the feed should consist of.")],
