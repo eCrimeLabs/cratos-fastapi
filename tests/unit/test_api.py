@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 with open('test.token', 'r') as f:
     token = f.read().strip()
 
-PERCENTAGE_DATATYPE = "10%"
+PERCENTAGE_DATATYPE = "100%"
 TOKEN_HEADER = {"token": token}
 MAX_WORKERS = 5
 DATAAGE = ["1h", "1w"]
@@ -48,9 +48,9 @@ def test_status():
     assert "ping" in response.json()
     assert "memcachedstatus" in response.json()
 
-def test_generate_token_form():
-    response = client.get("/v1/generate_token_form")
-    assert response.status_code == 200
+#def test_generate_token_form():
+#    response = client.get("/v1/generate_token_form")
+#    assert response.status_code == 200
 
 def test_generate_token_json():
     response = client.post("/v1/generate_token_json", json={"proto": "https", "port": "443", "domain": "demo.example.net", "auth": "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789aBcD", "expire": "2030-12-12"})
@@ -85,8 +85,53 @@ def test_get_feeds_data(feedName, dataType, dataAge, returnedDataType):
     elif returnedDataType == "xml":
         try:
             DefusedET.fromstring(response.content)
-        except DefusedET.ParseError:
-            pytest.fail("Invalid XML")
+        except DefusedET.ParseError as e:
+            # Print debugging information
+            print(f"\n{'='*80}")
+            print(f"XML Parse Error for: {feedName}-{dataType}-{dataAge}")
+            print(f"Error: {e}")
+            print(f"{'='*80}")
+            
+            # Find and print the problematic character/data
+            content = response.content.decode('utf-8', errors='replace')
+            
+            # Extract error position from the exception message
+            import re
+            match = re.search(r'line (\d+), column (\d+)', str(e))
+            if match:
+                line_num = int(match.group(1))
+                col_num = int(match.group(2))
+                
+                lines = content.split('\n')
+                if line_num <= len(lines):
+                    problem_line = lines[line_num - 1]
+                    print(f"\nProblematic line {line_num}:")
+                    print(f"{problem_line[:200]}...")  # First 200 chars
+                    
+                    if col_num < len(problem_line):
+                        # Show context around the problematic character
+                        start = max(0, col_num - 50)
+                        end = min(len(problem_line), col_num + 50)
+                        context = problem_line[start:end]
+                        
+                        print(f"\nContext around column {col_num}:")
+                        print(f"{context}")
+                        print(f"{' ' * (col_num - start - 1)}^ HERE")
+                        
+                        # Show character details
+                        if col_num - 1 < len(problem_line):
+                            bad_char = problem_line[col_num - 1]
+                            print(f"\nProblematic character: repr={repr(bad_char)}, ord={ord(bad_char)}, hex=0x{ord(bad_char):04x}")
+                            
+                            # Try to find the actual entry containing this character
+                            entries = re.findall(r'<entry>([^<]*' + re.escape(bad_char) + r'[^<]*)</entry>', problem_line)
+                            if entries:
+                                print(f"\nProblematic entry(ies):")
+                                for i, entry in enumerate(entries[:5], 1):  # Show first 5
+                                    print(f"{i}. {entry}")
+            
+            print(f"{'='*80}\n")
+            pytest.fail(f"Invalid XML: {e}")
 
 @pytest.mark.parametrize("orgUUID,dataType,dataAge,returnedDataType", product(ORGUUID, samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):

@@ -58,7 +58,7 @@ def cidrToIPs(cidr: str) -> list:
     :return: List of IP addresses as strings
     """
     try:
-        ips = ip_network(cidr)
+        ips = ip_network(cidr, strict=False)
         return [str(ip) for ip in ips]
     except ValueError as e:
         logger.error(f"Invalid CIDR notation: {cidr} - {str(e)}")
