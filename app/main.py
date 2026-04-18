@@ -374,7 +374,7 @@ async def pong(request: Request):
 )
 def form_post(request: Request):
     result = "Type a number"
-    return templates.TemplateResponse('generate_token_form.html', context={'request': request, 'result': result})
+    return templates.TemplateResponse(request=request, name='generate_token_form.html', context={'request': request, 'result': result})
 
 @app.post("/v1/generate_token_form", tags=["authentication"], include_in_schema=False)
 def form_post_form(request: Request, expire: str = Form(...), port: str = Form(...), proto: str = Form(...), domain: str = Form(...),  auth: str = Form(...)):
@@ -382,7 +382,7 @@ def form_post_form(request: Request, expire: str = Form(...), port: str = Form(.
     result = dependencies.encryptString(inputData, app.salt, app.password)
 
     reultLen = str(len(result['detail']))
-    return templates.TemplateResponse('generate_token_form.html', context={'request': request, 'result': result['detail'], 'reultLen': reultLen})
+    return templates.TemplateResponse(request=request, name='generate_token_form.html', context={'request': request, 'result': result['detail'], 'reultLen': reultLen})
 
 @app.post("/v1/generate_token_json", 
           tags=["authentication"]

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 with open('test.token', 'r') as f:
     token = f.read().strip()
 
-PERCENTAGE_DATATYPE = "100%"
+PERCENTAGE_DATATYPE = "10%"
 TOKEN_HEADER = {"token": token}
 MAX_WORKERS = 5
 DATAAGE = ["1h", "1w"]
@@ -48,9 +48,9 @@ def test_status():
     assert "ping" in response.json()
     assert "memcachedstatus" in response.json()
 
-#def test_generate_token_form():
-#    response = client.get("/v1/generate_token_form")
-#    assert response.status_code == 200
+def test_generate_token_form():
+    response = client.get("/v1/generate_token_form")
+    assert response.status_code == 200
 
 def test_generate_token_json():
     response = client.post("/v1/generate_token_json", json={"proto": "https", "port": "443", "domain": "demo.example.net", "auth": "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789aBcD", "expire": "2030-12-12"})
