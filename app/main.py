@@ -52,7 +52,7 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.6"
+CRATOS_VERSION = "1.0.7"
 
 # Compile regex patterns at module level for better performance
 URL_PATTERN = re.compile(r'^https?:\/\/[^\/]+(\/.*)$')
@@ -265,7 +265,7 @@ def customOpenAPI():
         version=CRATOS_VERSION,
         description=description,
         contact={
-            "name": "eCrimeLabs ApS",
+            "name": "eCrimeLabs",
             "url": "https://github.com/eCrimeLabs/cratos-fastapi"
             },
         license_info={
