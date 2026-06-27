@@ -281,7 +281,7 @@ def customOpenAPI():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
-app.openapi = custom_openapi
+app.openapi = customOpenAPI
 
 templates = Jinja2Templates(directory="templates/")
 
