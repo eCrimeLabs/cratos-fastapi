@@ -354,22 +354,66 @@ Feel free to fork the code, play with it, make some patches and send us the pull
 
 Feel free to contact us, create [issues](https://github.com/eCrimeLabs/cratos-fastapi/issues), if you have questions, remarks or bug reports.
 
-# Unit testing 
-If commiting code to this project please ensure to run a unit test prior, to identify potential errors 
+# Testing Cratos FastAPI
 
-Pre-requisit
-copy the file "test.token.example" to "test.token" and insert a valid API token.
+Running the tests is a way to check that Cratos is working correctly — for example right after installing it, after pulling in an update, or before submitting a code change. You don't need to be a developer to do this; the steps below explain what to type and what the result should look like.
 
-*Standard Test*
+A "test" is a small, automated check built into the project that exercises a piece of the application and confirms it still behaves correctly. They run using a tool called `pytest`, which gets installed automatically when you run `pip install -r requirements.txt` during setup.
+
+First, open a terminal, move into the folder where Cratos FastAPI is installed, and activate its virtual environment:
+
+```bash
+cd /opt/cratos-fastapi        # or wherever you installed it
+source .venv/bin/activate
+```
+
+## Quick checks (start here)
+
+These run entirely on your own machine — no real MISP server, internet connection, or memcached needed. They take only a few seconds and are safe to run any time:
+
+```bash
+pytest tests/unit/test_dependencies.py tests/unit/test_auth.py tests/unit/test_feeds.py tests/unit/test_routes_mocked.py
+```
+
+A successful run ends with a green-ish summary line like:
 
 ```
+======================= 87 passed in 16.14s ========================
+```
+
+If you see lines starting with `FAILED` instead, see "If a test fails" below.
+
+## Full test against a real MISP instance
+
+This is a more thorough, slower check (a few minutes) that actually connects to a real MISP instance using a genuine Cratos API token, so it also verifies your network connectivity and MISP configuration.
+
+**One-time setup:** copy `test.token.example` to `test.token` and paste a valid Cratos API token into it (see "Configuring your first MISP connection config" above for how to generate one).
+
+```bash
+cp test.token.example test.token
+```
+
+Then run:
+
+```bash
 pytest tests/unit/test_api.py
 ```
 
-*Standard Test with HTML report*
-```
+Or, for a report you can open and read in a web browser:
+
+```bash
 pytest tests/unit/test_api.py --html=report.html
 ```
+
+## If a test fails
+
+A `FAILED` line means something isn't behaving as expected. This could be a real bug, a configuration problem (e.g. an expired token, an unreachable MISP server, incorrect file permissions), or something specific to your environment. If you're not sure which, copy the full terminal output and [open an issue](https://github.com/eCrimeLabs/cratos-fastapi/issues), including:
+- which command you ran
+- the complete output, including the `FAILED` lines
+- anything you changed or installed right before it started failing
+
+If you're contributing code, please run at least the quick checks above before committing, to catch problems early.
+
 # License
 
 This software is licensed under [MIT](https://github.com/eCrimeLabs/cratos-fastapi/blob/main/LICENSE)
