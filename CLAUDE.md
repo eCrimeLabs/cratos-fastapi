@@ -19,13 +19,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 # Run prod server (gunicorn_config.py expects /opt/cratos-fastapi as chdir and a 'fastapi' user — adjust before using locally)
 gunicorn app.main:app --config gunicorn_config.py
 
-# Tests — requires test.token (copy from test.token.example, fill with a real MISP-backed Cratos token)
+# Fast, offline unit tests (no MISP/network/memcached needed) — run these first during development
+pytest tests/unit/test_dependencies.py tests/unit/test_auth.py tests/unit/test_feeds.py tests/unit/test_routes_mocked.py
+
+# Full integration suite — requires test.token (copy from test.token.example, fill with a real
+# MISP-backed Cratos token) and live network access to that token's MISP instance. Slow (~4 min,
+# hundreds of parametrized cases, one fresh PyMISP session per case).
 pytest tests/unit/test_api.py
 pytest tests/unit/test_api.py --html=report.html   # HTML report
 pytest tests/unit/test_api.py -k test_get_feeds_data  # single test / pattern
 ```
 
 `tests/unit/test_api_external.py` hits a hardcoded external URL (`https://cratos.ecrimelabs.net`) rather than the in-process `TestClient` — it's for live-environment smoke testing, not part of normal local test runs.
+
+`test_dependencies.py`, `test_auth.py`, `test_feeds.py`, and `test_routes_mocked.py` are self-contained unit tests covering token encryption/validation, the HTTP Basic/query/header auth paths in `getApiToken`, IP-allowlist/blacklist logic, the regex-based attribute parsers/formatters in `core/feeds.py`/`core/vendors.py`, and route-level error-path behavior (MISP down/timeout/garbage-response → correct HTTP status, mocked via `monkeypatch.setattr` on `app.core.misp`/`app.core.feeds` functions). They use synthetic RFC 5737/RFC 2606 (`.invalid`) fixture data and a throwaway `sites/*.yaml` file cleaned up via fixture teardown — they don't touch the real `test.token`, real site configs, or the network. Prefer adding new auth/parsing/error-path edge cases here over the live `test_api.py` suite.
 
 There is no linter/formatter configured in this repo.
 
@@ -51,4 +58,6 @@ There is no linter/formatter configured in this repo.
 
 ## Known open issues
 
-`SECURITY_AUDIT.md` tracks a self-audit with several **OPEN** findings worth checking before touching related code: ReDoS-prone regexes in `app/dependencies.py`/`app/main.py`, no rate limiting, weak token-format validation regex, MD5 cache-key helper still present (deprecated in favor of `sha256HashCacheKey`), and the `srcIP == 'testclient'` bypass in `dependencies.ipOnAllowList` (needed for FastAPI `TestClient`, but worth knowing it exists). One CRITICAL path-traversal finding (site config file resolution from a decrypted token) has already been fixed and is reflected in the current `orgConfigExtraction` code.
+`SECURITY_AUDIT.md` tracks a self-audit with several **OPEN** findings worth checking before touching related code: ReDoS-prone regexes in `app/dependencies.py`/`app/main.py`, no rate limiting, weak token-format validation regex, MD5 cache-key helper still present (deprecated in favor of `sha256HashCacheKey`), and the `srcIP == 'testclient'` bypass in `dependencies.ipOnAllowList` (needed for FastAPI `TestClient`, but worth knowing it exists). One CRITICAL path-traversal finding (site config file resolution from a decrypted token) has already been fixed and is covered by a regression test in `tests/unit/test_dependencies.py`.
+
+Three functional bugs were found and fixed during the 2026-06-27 doc/test pass (all now have regression coverage): `app/main.py` referenced an undefined `custom_openapi` (leftover from a camelCase rename) which broke app startup entirely; `getApiToken`'s HTTP Basic auth branch used `dependencies.isUrlSafeBase64(...)` directly as a boolean — that function always returns a truthy dict, so the early base64-format check never actually rejected invalid input (not an auth bypass, since `checkApiToken` downstream still validated correctly, but the early-rejection logic was dead code); and `mispGetStatistics`/`mispGetWarninglists` in `app/core/misp.py` unconditionally checked `isinstance(mispResponse['content'], dict)`, but a MISP connection error or timeout never sets a `content` key — this raised an uncaught `KeyError` that crashed `/v1/statistics` and `/v1/warninglist/...` (these two routes don't have the try/except "Thread error" fallback that `/v1/feed` has) whenever the configured MISP instance was unreachable. Fixed by guarding the check on `mispResponse['status']` first, matching the pattern `mispGetVersion` already used correctly.

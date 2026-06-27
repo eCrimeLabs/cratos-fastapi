@@ -102,9 +102,9 @@ async def getApiToken(
         Only related to HTTPBasicCredentials
         """
         concat_user_pass = f"{credentials.username}{credentials.password}"
-        if credentials.username == "cratos" and dependencies.isUrlSafeBase64(credentials.password):
+        if credentials.username == "cratos" and dependencies.isUrlSafeBase64(credentials.password)['status']:
             api_key = credentials.password
-        elif dependencies.isUrlSafeBase64(concat_user_pass):
+        elif dependencies.isUrlSafeBase64(concat_user_pass)['status']:
             api_key = concat_user_pass
         else:
             raise HTTPException(
