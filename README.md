@@ -397,7 +397,7 @@ pytest tests/unit/test_dependencies.py tests/unit/test_auth.py tests/unit/test_f
 A successful run ends with a green-ish summary line like:
 
 ```
-======================= 87 passed in 16.14s ========================
+============================= 115 passed in 16.69s =============================
 ```
 
 If you see lines starting with `FAILED` instead, see "If a test fails" below.
