@@ -52,7 +52,7 @@ error_mapping = {
 }
 
 API_KEY_NAME = "token"
-CRATOS_VERSION = "1.0.7"
+CRATOS_VERSION = "1.0.8"
 
 # Compile regex patterns at module level for better performance
 URL_PATTERN = re.compile(r'^https?:\/\/[^\/]+(\/.*)$')

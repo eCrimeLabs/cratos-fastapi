@@ -4,6 +4,9 @@ import pytest
 import json
 import yaml
 import time
+import re
+import base64
+import ipaddress
 from defusedxml import ElementTree as DefusedET
 from app.models.models import ModelDataType, ModelFeedName, ModelOutputType, ModelVendorName
 from itertools import product
@@ -13,6 +16,72 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Per-data-type structural validators for live content checks below. Data types not
+# listed here are free-form (mutex, snort, yara, sigma, email-subject, email-attachment,
+# url, crypto-currency) and only get the format-validity check, not a content shape check.
+def _isValidIPv6(value):
+    try:
+        ipaddress.IPv6Address(value)
+        return True
+    except ValueError:
+        return False
+
+CONTENT_VALIDATORS = {
+    'ipv4': lambda v: re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', v),
+    'ipv4ext': lambda v: re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', v),
+    'cidr4': lambda v: re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$', v),
+    'ipv6': _isValidIPv6,
+    'domain': lambda v: '.' in v and ' ' not in v,
+    'hostname': lambda v: '.' in v and ' ' not in v,
+    'file-md5': lambda v: re.match(r'^[a-fA-F0-9]{32}$', v),
+    'file-sha1': lambda v: re.match(r'^[a-fA-F0-9]{40}$', v),
+    'file-sha256': lambda v: re.match(r'^[a-fA-F0-9]{64}$', v),
+    'x509-fingerprint-md5': lambda v: re.match(r'^[a-fA-F0-9]{32}$', v),
+    'x509-fingerprint-sha1': lambda v: re.match(r'^[a-fA-F0-9]{40}$', v),
+    'x509-fingerprint-sha256': lambda v: re.match(r'^[a-fA-F0-9]{64}$', v),
+    'email-address': lambda v: '@' in v,
+    'vulnerability': lambda v: re.match(r'^cve-\d{4}-\d{4,7}$', v, re.IGNORECASE),
+    'ja3': lambda v: re.match(r'^[a-f0-9]{32}$', v),
+    'hassh-md5': lambda v: re.match(r'^[a-f0-9]{32}$', v),
+    'hasshserver-md5': lambda v: re.match(r'^[a-f0-9]{32}$', v),
+    'imphash': lambda v: re.match(r'^[a-f0-9]{32}$', v),
+    'chrome-extension-id': lambda v: re.match(r'^[a-p]{32}$', v),
+    'edge-extension-id': lambda v: re.match(r'^[a-p]{32}$', v),
+}
+
+def decodeOutputToValues(content: bytes, outputType: str) -> list:
+    """ Decode a feed/vendor response body back into a list of string values, regardless
+    of output format. Returns [] for genuinely empty results (MISP had no matching data) -
+    callers should treat an empty list as "nothing to validate", not a failure. """
+    text = content.decode('utf-8', errors='replace')
+    if outputType == 'json':
+        data = json.loads(text)
+        return data if isinstance(data, list) else []
+    elif outputType == 'yaml':
+        data = yaml.safe_load(text)
+        return data if isinstance(data, list) else []
+    elif outputType == 'xml':
+        root = DefusedET.fromstring(text)
+        return [child.text for child in root if child.text]
+    elif outputType == 'b64':
+        return [base64.b64decode(line).decode('utf-8') for line in text.split('\r\n') if line.strip()]
+    elif outputType == 'txt':
+        return [line for line in text.split('\r\n') if line.strip()]
+    return []
+
+def assertContentValidForDataType(content: bytes, outputType: str, dataType: str):
+    """ Only enforced when MISP actually returned data for this combination - an empty
+    result is a valid outcome (the live instance may simply have no attributes matching
+    this feed/type/age right now), not a failure. """
+    validator = CONTENT_VALIDATORS.get(dataType)
+    if not validator:
+        return
+    values = decodeOutputToValues(content, outputType)
+    if not values:
+        return
+    invalid = [v for v in values if not validator(v)]
+    assert not invalid, f"{dataType} values failing content validation: {invalid[:5]}"
 
 with open('test.token', 'r') as f:
     token = f.read().strip()
@@ -133,6 +202,8 @@ def test_get_feeds_data(feedName, dataType, dataAge, returnedDataType):
             print(f"{'='*80}\n")
             pytest.fail(f"Invalid XML: {e}")
 
+    assertContentValidForDataType(response.content, returnedDataType, dataType)
+
 @pytest.mark.parametrize("orgUUID,dataType,dataAge,returnedDataType", product(ORGUUID, samplingModelDataTypes, DATAAGE, [e.value for e in ModelOutputType]))
 def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
     start_time = time.time()
@@ -157,6 +228,8 @@ def test_get_org_uuid_data(orgUUID, dataType, dataAge, returnedDataType):
         except DefusedET.ParseError:
             pytest.fail("Invalid XML")
 
+    assertContentValidForDataType(response.content, returnedDataType, dataType)
+
 @pytest.mark.parametrize("vendorName,feedName,dataType,dataAge", product([e.value for e in ModelVendorName], [e.value for e in ModelFeedName], samplingModelDataTypes, DATAAGE))
 def test_get_vendor_feeds_data(vendorName, feedName, dataType, dataAge):
     start_time = time.time()
@@ -164,3 +237,16 @@ def test_get_vendor_feeds_data(vendorName, feedName, dataType, dataAge):
     end_time = time.time()
     logger.info(f"Request and response time: {end_time - start_time:.3f} seconds - /v1/vendor/{vendorName}/feed/{feedName}/type/{dataType}/age/{dataAge}")
     assert response.status_code == 200
+
+    # Vendor output is always plain text regardless of dataType.
+    assertContentValidForDataType(response.content, "txt", dataType)
+
+    if dataType == "url" and vendorName == "paloalto":
+        # PaloAlto-specific: the *leading* protocol must be stripped from every URL entry
+        # (formatPaloaltoOutputData only strips a leading scheme - real-world URLs often
+        # contain a second, unrelated "://" later in the string, e.g. a redirect query
+        # parameter or a defanged "hxxp://" indicator embedded in the path, which is
+        # correctly left untouched - so checking for "://" anywhere would be a false positive).
+        values = decodeOutputToValues(response.content, "txt")
+        stillHasLeadingProtocol = [v for v in values if re.match(r'^\w+://', v)]
+        assert not stillHasLeadingProtocol, f"PaloAlto output retained a leading protocol on: {stillHasLeadingProtocol[:5]}"
