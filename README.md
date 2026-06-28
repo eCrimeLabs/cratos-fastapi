@@ -222,9 +222,19 @@ sudo adduser fastapiuser --system --no-create-home --shell /usr/sbin/nologin
 
 ## Configuraiton and setup of Nginx (If needed)
 
-In the [nginx.conf](/INSTALLATION/nginx.conf) be sure to modify the setup to match your environment, and also install a SSL certificate, either through your own or services like Let's Encrypt.
+In the [nginx.conf_example](/INSTALLATION/nginx.conf_example) be sure to modify the setup to match your environment, and also install a SSL certificate, either through your own or services like Let's Encrypt.
 
 Replace the current "nginx.conf" located at "/etc/nginx/nginx.conf"
+
+## Configuration and setup of Apache (Alternative to Nginx)
+
+If you'd rather use Apache httpd as the reverse proxy, [apache.conf_example](/INSTALLATION/apache.conf_example) provides the same security properties as the nginx config above (TLS termination, security headers, HTTP->HTTPS redirect, and correct reverse-proxy IP header handling). Enable the required modules first:
+
+```bash
+sudo a2enmod ssl proxy proxy_http headers rewrite deflate
+```
+
+Then adapt the certificate paths and `ServerName` to your environment, same as with the nginx config.
 
 ## Configuration and setup of supervisord (Boot type 1)
 [Supervisor](http://supervisord.org/introduction.html) is a client/server system that allows its users to monitor and control a number of processes on UNIX-like operating systems.
@@ -413,6 +423,61 @@ A `FAILED` line means something isn't behaving as expected. This could be a real
 - anything you changed or installed right before it started failing
 
 If you're contributing code, please run at least the quick checks above before committing, to catch problems early.
+
+# Software Bill of Materials (SBOM)
+
+`sbom.json` lists every third-party Python package Cratos depends on, with exact versions — useful for vulnerability scanning, license auditing, or any tooling that expects a [CycloneDX](https://cyclonedx.org/) SBOM (e.g. Grype, Dependency-Track, Snyk).
+
+It's generated directly from the locked `requirements.txt`, so it only reflects what's pinned there.
+
+## Checking it's up to date
+
+`sbom.json` only stays accurate if it's regenerated whenever `requirements.txt` changes. To check, regenerate it and see if anything changed:
+
+```bash
+source .venv/bin/activate
+pip install cyclonedx-bom   # one-time, if not already installed
+cyclonedx-py requirements requirements.txt --mc-type application --of JSON -o sbom.json --validate
+git diff --stat sbom.json
+```
+
+If `git diff` shows changes, commit the regenerated file alongside whatever dependency change caused it.
+
+## Updating dependencies and the SBOM together
+
+Cratos pins exact versions in `requirements.txt`, generated from the looser `requirements.in` via [pip-tools](https://github.com/jazzband/pip-tools). To bump or add a dependency:
+
+```bash
+source .venv/bin/activate
+pip install pip-tools   # one-time, if not already installed
+
+# 1. Edit requirements.in (add/change the package there, not requirements.txt directly)
+
+# 2. Re-lock requirements.txt
+pip-compile requirements.in --output-file=requirements.txt --no-annotate --strip-extras
+
+# 3. Reinstall and run the quick checks (see "Testing Cratos FastAPI" above)
+pip install -r requirements.txt
+pytest tests/unit/test_dependencies.py tests/unit/test_auth.py tests/unit/test_feeds.py tests/unit/test_routes_mocked.py
+
+# 4. Regenerate the SBOM to match
+cyclonedx-py requirements requirements.txt --mc-type application --of JSON -o sbom.json --validate
+```
+
+Commit `requirements.in`, `requirements.txt`, and `sbom.json` together so they never drift apart.
+
+## Keeping pymisp current
+
+`pymisp` is the official MISP client library and tends to evolve alongside the MISP server itself, so it's worth checking for updates more often than the rest of the dependencies. To bump just `pymisp` without touching anything else's pinned version:
+
+```bash
+source .venv/bin/activate
+pip-compile requirements.in --output-file=requirements.txt --upgrade-package pymisp --no-annotate --strip-extras
+pip install -r requirements.txt
+pytest tests/unit/test_dependencies.py tests/unit/test_auth.py tests/unit/test_feeds.py tests/unit/test_routes_mocked.py
+pytest tests/unit/test_api.py   # if you have a test.token configured — exercises real MISP calls through PyMISP
+cyclonedx-py requirements requirements.txt --mc-type application --of JSON -o sbom.json --validate
+```
 
 # License
 

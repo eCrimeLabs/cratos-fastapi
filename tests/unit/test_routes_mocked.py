@@ -156,6 +156,7 @@ def test_warninglist_index_success(authHeaders, monkeypatch):
     }))
     response = client.get("/v1/warninglist/id/0/output/json", headers=authHeaders)
     assert response.status_code == 200
+    assert response.json() == [{'Warninglist': {'id': '1', 'name': 'test-list'}}]
 
 
 def test_warninglist_connection_error_does_not_crash(authHeaders, monkeypatch):
@@ -175,6 +176,36 @@ def test_clear_cache_ok_without_memcached(authHeaders):
     )
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+
+
+# --- /v1/feed success paths: end-to-end through misp.py (mocked) -> feeds.py -> response ---
+
+def fakeAttributeSearch(values):
+    def _fake(requestData):
+        return {'status': True, 'content': [{'value': v} for v in values]}
+    return _fake
+
+
+def test_feed_success_returns_parsed_deduped_data(authHeaders, monkeypatch):
+    monkeypatch.setattr(misp, 'mispSearchAttributesSimpel', fakeAttributeSearch(
+        ["1.2.3.4", "1.2.3.4", "5.6.7.8", "not-an-ip"]
+    ))
+    response = client.get(
+        "/v1/feed/incident/type/ipv4/age/1h/output/txt", headers=authHeaders
+    )
+    assert response.status_code == 200
+    assert response.text == "1.2.3.4\r\n5.6.7.8"
+
+
+def test_feed_success_json_output(authHeaders, monkeypatch):
+    monkeypatch.setattr(misp, 'mispSearchAttributesSimpel', fakeAttributeSearch(
+        ["d41d8cd98f00b204e9800998ecf8427e"]
+    ))
+    response = client.get(
+        "/v1/feed/incident/type/file-md5/age/1h/output/json", headers=authHeaders
+    )
+    assert response.status_code == 200
+    assert response.json() == ["d41d8cd98f00b204e9800998ecf8427e"]
 
 
 # --- /v1/feed error paths ---
@@ -200,3 +231,27 @@ def test_feed_unhandled_exception_maps_to_500(authHeaders, monkeypatch):
     )
     assert response.status_code == 500
     assert response.json()['detail'] == "Thread error"
+
+
+# --- /v1/vendor success paths: verifies vendor-specific formatting wired correctly end-to-end ---
+
+def test_vendor_paloalto_strips_url_protocol(authHeaders, monkeypatch):
+    monkeypatch.setattr(misp, 'mispSearchAttributesSimpel', fakeAttributeSearch(
+        ["http://evil.example.com/path"]
+    ))
+    response = client.get(
+        "/v1/vendor/paloalto/feed/incident/type/url/age/1h", headers=authHeaders
+    )
+    assert response.status_code == 200
+    assert response.text == "evil.example.com/path"
+
+
+def test_vendor_cisco_keeps_url_protocol(authHeaders, monkeypatch):
+    monkeypatch.setattr(misp, 'mispSearchAttributesSimpel', fakeAttributeSearch(
+        ["http://evil.example.com/path"]
+    ))
+    response = client.get(
+        "/v1/vendor/cisco/feed/incident/type/url/age/1h", headers=authHeaders
+    )
+    assert response.status_code == 200
+    assert response.text == "http://evil.example.com/path"

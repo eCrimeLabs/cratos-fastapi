@@ -63,6 +63,56 @@ def test_is_url_safe_base64_invalid():
     assert result['status'] is False
 
 
+# --- cidrToIPs ---
+
+def test_cidr_to_ips_slash_30():
+    assert dependencies.cidrToIPs("192.0.2.0/30") == [
+        "192.0.2.0", "192.0.2.1", "192.0.2.2", "192.0.2.3"
+    ]
+
+
+def test_cidr_to_ips_slash_32_single_host():
+    assert dependencies.cidrToIPs("192.0.2.5/32") == ["192.0.2.5"]
+
+
+def test_cidr_to_ips_slash_24():
+    ips = dependencies.cidrToIPs("192.0.2.0/24")
+    assert len(ips) == 256
+    assert ips[0] == "192.0.2.0"
+    assert ips[-1] == "192.0.2.255"
+
+
+def test_cidr_to_ips_normalizes_host_bits_when_not_strict():
+    # strict=False means a CIDR with host bits set (.5 in a /30) is normalized
+    # to its containing network (192.0.2.4/30) rather than raising.
+    assert dependencies.cidrToIPs("192.0.2.5/30") == [
+        "192.0.2.4", "192.0.2.5", "192.0.2.6", "192.0.2.7"
+    ]
+
+
+def test_cidr_to_ips_invalid_notation_returns_empty_list():
+    assert dependencies.cidrToIPs("not-a-cidr") == []
+    assert dependencies.cidrToIPs("999.999.999.999/24") == []
+    assert dependencies.cidrToIPs("") == []
+
+
+def test_cidr_to_ips_rejects_oversized_cidr_without_expanding():
+    # Regression test: cidrToIPs used to have no upper bound, so a wide CIDR
+    # (e.g. a malformed/poisoned MISP attribute value) could try to materialize
+    # billions of address strings and exhaust memory. Confirm it now bails out
+    # cheaply instead, honoring "max_cidr_expansion_addresses" from config.yaml.
+    assert dependencies.cidrToIPs("0.0.0.0/0") == []
+    assert dependencies.cidrToIPs("10.0.0.0/8") == []
+
+
+def test_cidr_to_ips_respects_configured_limit(monkeypatch):
+    monkeypatch.setitem(dependencies.configCore, 'max_cidr_expansion_addresses', 4)
+    assert dependencies.cidrToIPs("192.0.2.0/30") == [
+        "192.0.2.0", "192.0.2.1", "192.0.2.2", "192.0.2.3"
+    ]
+    assert dependencies.cidrToIPs("192.0.2.0/29") == []  # 8 addresses > configured limit of 4
+
+
 # --- isTokenExpired ---
 
 def test_is_token_expired_future_date():
@@ -128,6 +178,10 @@ def test_blacklist_check_blacklisted():
 @pytest.mark.parametrize("plainText", [
     "https;443;misp.example.net;" + AUTHKEY + ";2030-12-31",
     "http;80;misp.example.net;" + AUTHKEY + ";2030-12-31",
+    "https;8080;misp.example.net;" + AUTHKEY + ";2030-12-31",   # regression: ports 1024-65535
+    "https;8443;misp.example.net;" + AUTHKEY + ";2030-12-31",   # used to be wrongly rejected
+    "https;65535;misp.example.net;" + AUTHKEY + ";2030-12-31",
+    "https;1024;misp.example.net;" + AUTHKEY + ";2030-12-31",
 ])
 def test_validate_string_bool_valid(plainText):
     assert dependencies.validateStringBool(plainText) is True

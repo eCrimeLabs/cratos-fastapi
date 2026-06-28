@@ -48,6 +48,26 @@ def test_parsing_ipv4ext_expands_cidr():
     assert result == ["192.0.2.0", "192.0.2.1", "192.0.2.2", "192.0.2.3"]
 
 
+def test_parsing_ipv4ext_expands_larger_cidr():
+    blob = mispBlob(["192.0.2.0/24"])
+    result = feeds.mispDataParsingSimple(blob, "ipv4ext")
+    assert len(result) == 256
+    assert result[0] == "192.0.2.0"
+    assert result[-1] == "192.0.2.99"  # sorted() on strings, not IP-numeric order
+
+
+def test_parsing_ipv4ext_plain_ip_not_expanded():
+    blob = mispBlob(["1.2.3.4"])
+    result = feeds.mispDataParsingSimple(blob, "ipv4ext")
+    assert result == ["1.2.3.4"]
+
+
+def test_parsing_cidr4_returns_notation_unexpanded():
+    blob = mispBlob(["192.0.2.0/24", "not-a-cidr"])
+    result = feeds.mispDataParsingSimple(blob, "cidr4")
+    assert result == ["192.0.2.0/24"]
+
+
 def test_parsing_ipv6_validates_address():
     blob = mispBlob(["2001:db8::1", "not-an-ipv6"])
     result = feeds.mispDataParsingSimple(blob, "ipv6")

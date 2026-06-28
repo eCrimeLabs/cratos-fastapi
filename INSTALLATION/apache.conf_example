@@ -1,0 +1,85 @@
+# Please be sure to go through the configuration and adapt it to your environment.
+# This is the Apache httpd equivalent of nginx.conf_example - same security properties:
+# TLS termination, security headers, HTTP->HTTPS redirect, and a reverse proxy to the
+# Cratos backend (gunicorn/uvicorn bound to 127.0.0.1:8080 - see gunicorn_config.py).
+#
+# Required modules (enable with a2enmod on Debian/Ubuntu):
+#   a2enmod ssl proxy proxy_http headers rewrite deflate
+#
+# Global hardening (set in /etc/apache2/apache2.conf or /etc/httpd/conf/httpd.conf,
+# not per-vhost):
+#   ServerTokens Prod
+#   ServerSignature Off
+
+<VirtualHost *:80>
+    ServerName cratos.example.net
+
+    # Allow robots.txt and ACME/Let's Encrypt HTTP-01 challenges over plain HTTP;
+    # redirect everything else to HTTPS.
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+
+    <Location "/">
+        <LimitExcept GET>
+            Require all denied
+        </LimitExcept>
+    </Location>
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName cratos.example.net
+
+    # Certificate(s) and private key (REMEMBER TO MODIFY THIS FOR YOUR SETUP)
+    # Apache 2.4.8+ serves the full chain directly from SSLCertificateFile when it
+    # contains the chain (as fullchain.pem from Let's Encrypt does) - no separate
+    # SSLCertificateChainFile/SSLCACertificateFile directive needed.
+    SSLEngine on
+    SSLCertificateFile      /etc/letsencrypt/live/cratos.example.net/fullchain.pem
+    SSLCertificateKeyFile   /etc/letsencrypt/live/cratos.example.net/privkey.pem
+
+    # openssl dhparam -out /etc/ssl/dhparams.pem 4096
+    SSLOpenSSLConfCmd DHParameters /etc/ssl/dhparams.pem
+
+    SSLProtocol             -all +TLSv1.2 +TLSv1.3
+    SSLCipherSuite          ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256
+    SSLHonorCipherOrder     on
+    SSLSessionCache         shared:MozSSL:10m
+    SSLSessionTickets       off
+    SSLUseStapling          on
+    SSLStaplingCache        shared:OCSPCache:10m
+
+    Timeout 800
+    ProxyTimeout 800
+
+    # Security headers - matches the security headers Cratos itself adds on
+    # /v1/help, /redoc, /v1/generate_token_form (defense in depth at the proxy layer
+    # too, and covers any path the app doesn't add them to).
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubdomains; preload"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+
+    # --- Reverse proxy to Cratos (gunicorn/uvicorn on 127.0.0.1:8080) ---
+    #
+    # SECURITY: mod_proxy_http automatically appends the real connecting client IP to
+    # any existing X-Forwarded-For header from the client (it never lets the client
+    # overwrite a prior hop) - this matches the trust model Cratos already expects:
+    # config.yaml's reverse_proxy_real_ip_regex is anchored with a trailing $, which
+    # deliberately extracts the LAST (proxy-appended, non-spoofable) IP in the chain,
+    # not the first. X-Real-IP is set explicitly below since, unlike nginx, Apache does
+    # not set it automatically - %{REMOTE_ADDR}s is Apache's own view of the TCP peer,
+    # so this is equally non-spoofable (overwritten, not appended).
+    RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
+
+    ProxyPreserveHost On
+    ProxyPass        / http://127.0.0.1:8080/
+    ProxyPassReverse / http://127.0.0.1:8080/
+
+    <Location "/">
+        <LimitExcept GET POST DELETE>
+            Require all denied
+        </LimitExcept>
+    </Location>
+</VirtualHost>

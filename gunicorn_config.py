@@ -26,8 +26,13 @@ graceful_timeout = 30
 preload_app = True
 
 # Proxy configuration
-forwarded_allow_ips = '*'
-proxy_protocol = True
+# Only trust forwarded headers from the local reverse proxy (gunicorn binds to 127.0.0.1
+# only, so this should be the loopback nginx is proxying from - never '*'). proxy_protocol
+# is for TCP-level load balancers (e.g. HAProxy/ELB) that prefix connections with a PROXY
+# protocol header; the documented nginx setup uses a standard HTTP proxy_pass, which does
+# not send this, so leave it disabled unless your reverse proxy is configured to send it.
+forwarded_allow_ips = '127.0.0.1'
+proxy_protocol = False
 
 # Process ownership (uncomment and adjust as needed)
 user = 'fastapi'
@@ -51,7 +56,7 @@ proc_name = 'cratos-fastapi'
 # Server mechanics
 daemon = False
 pidfile = None
-umask = 0
+umask = 0o027  # rwxr-x--- : owner full access, group read, no access for others
 tmp_upload_dir = None
 
 # SSL (if needed, uncomment and configure)

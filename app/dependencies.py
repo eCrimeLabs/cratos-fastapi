@@ -53,13 +53,19 @@ def base64List(listData: list) -> list:
 
 
 def cidrToIPs(cidr: str) -> list:
-    """ Convert CIDR notation to a list of IP addresses
+    """ Convert CIDR notation to a list of IP addresses, bounded by the
+        "max_cidr_expansion_addresses" config setting to avoid memory/CPU exhaustion
+        from overly wide CIDRs (e.g. a malformed or poisoned MISP attribute value).
     :param cidr: CIDR notation string (e.g., '192.168.1.0/24')
-    :return: List of IP addresses as strings
+    :return: List of IP addresses as strings, or an empty list if invalid or too wide to expand
     """
     try:
-        ips = ip_network(cidr, strict=False)
-        return [str(ip) for ip in ips]
+        network = ip_network(cidr, strict=False)
+        maxAddresses = configCore.get('max_cidr_expansion_addresses', 65536)
+        if network.num_addresses > maxAddresses:
+            logger.warning(f"CIDR {cidr} expands to {network.num_addresses} addresses, exceeding the configured limit of {maxAddresses} - skipping expansion")
+            return []
+        return [str(ip) for ip in network]
     except ValueError as e:
         logger.error(f"Invalid CIDR notation: {cidr} - {str(e)}")
         return []
@@ -294,7 +300,7 @@ def validateStringBool(plainText: str) -> bool:
         # There has to be exactly 5 parameters
         if not re.search(r"^(https|http)$", configData[0], re.IGNORECASE):
             return False
-        if not re.search(r"^(102[0-3]|10[0-1]\d|[1-9][0-9]{0,2}|0)$", configData[1], re.IGNORECASE):
+        if not re.search(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$", configData[1], re.IGNORECASE):
             return False
         if not re.search(r"^[a-zA-Z0-9\.\:]{4,75}$", configData[2], re.IGNORECASE):
             return False

@@ -19,3 +19,8 @@ reverse_proxy_regex_place: 1
 access_log: "/var/logs/cratos/access.log"
 access_log_max_bytes: 100
 access_log_rotations: 5
+# Maximum number of addresses a single CIDR (e.g. "ipv4ext" feed values) is allowed to expand
+# into. Protects against memory/CPU exhaustion from overly wide CIDRs (e.g. a malformed or
+# poisoned MISP attribute containing something like "10.0.0.0/8" or wider). CIDRs that would
+# expand beyond this are skipped (logged, not raised). Optional - defaults to 65536 (a /16) if omitted.
+max_cidr_expansion_addresses: 65536

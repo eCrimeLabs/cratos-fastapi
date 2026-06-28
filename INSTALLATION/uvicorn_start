@@ -9,4 +9,6 @@ WORKERS="4"                 # Number of Uvicorn worker processes
 # ONLY Uncomment one of the below.
 
 # Uncomment below if you feel that no need to log from the application itself
-#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --no-server-header --proxy-headers --forwarded-allow-ips='*'
+# --forwarded-allow-ips is restricted to the local reverse proxy (this script binds to
+# 127.0.0.1 only) - never use '*' here, or any client could spoof X-Forwarded-For/X-Real-IP.
+#/opt/cratos-fastapi/.venv/bin/uvicorn ${APP_MODULE} --host ${HOST} --port ${PORT} --workers ${WORKERS} --no-server-header --proxy-headers --forwarded-allow-ips='127.0.0.1'

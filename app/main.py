@@ -112,7 +112,7 @@ async def getApiToken(
             )
 
     if api_key is not None:
-        client_ip = request.client.host
+        client_ip = request.state.client_ip
         returnValue = dependencies.checkApiToken(api_key, app.salt, app.password, client_ip)
         if returnValue['status']:
             request.state.configCore = returnValue['config']
@@ -380,6 +380,9 @@ def formPostForm(request: Request, expire: str = Form(...), port: str = Form(...
     inputData = str(proto) + ";" + str(port) + ";" + str(domain) + ";" + str(auth) + ";" + str(expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
 
+    if not result['status']:
+        return templates.TemplateResponse(request=request, name='generate_token_form.html', context={'request': request, 'result': f"ERROR: {result['detail']}"})
+
     reultLen = str(len(result['detail']))
     return templates.TemplateResponse(request=request, name='generate_token_form.html', context={'request': request, 'result': result['detail'], 'reultLen': reultLen})
 
@@ -401,6 +404,8 @@ def formPostJson(
     authKeyToken = {}
     inputData = str(item.proto) + ";" + str(item.port) + ";" + str(item.domain) + ";" + str(item.auth) + ";" + str(item.expire)
     result = dependencies.encryptString(inputData, app.salt, app.password)
+    if not result['status']:
+        raise HTTPException(status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=result['detail'])
     authKeyToken['MISP'] = str(item.proto) + '://' + str(item.domain) + ':' + str(item.port) + '/'
     authKeyToken['validity'] = str(item.expire)
     authKeyToken['token'] = result['detail']

@@ -116,15 +116,15 @@ class formAuthGenItem(BaseModel):
     
     @validator('proto')
     def validateProtoFormat(cls, proto):
-        if not re.match(r'^https|http$', str(proto)):
+        if not re.match(r'^(https|http)$', str(proto)):
             raise ValueError('Proto has to be either http or https')
-        return proto       
+        return proto
     
     @validator('domain')
     def validateDomainFormat(cls, domain):
         if not re.match(r'^[a-zA-Z0-9\.\:]{4,75}$', str(domain)):
-            raise ValueError('Proto has to be either http or https')
-        return domain    
+            raise ValueError('Domain must be 4-75 characters of letters, digits, dots, or colons')
+        return domain
 
     @validator('auth')
     def validateAuthFormat(cls, auth):
