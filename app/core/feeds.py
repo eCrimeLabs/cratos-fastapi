@@ -7,9 +7,48 @@ import re
 import ipaddress
 from dicttoxml import dicttoxml, LOG
 import logging
+import unicodedata
+
 
 # Suppress info/debug logs from dicttoxml
 LOG.setLevel(logging.ERROR)
+
+logger = logging.getLogger(__name__)
+
+def removeInvisibleCharacters(attribute: str) -> str:
+    """
+    Remove invisible and problematic Unicode characters that can cause issues in output formats.
+    This uses Unicode categories to filter out control characters (category 'C') which includes:
+    - Zero-width spaces (Cf - Format)
+    - Control characters (Cc - Control)
+    - Surrogates (Cs - Surrogate)
+    - Private use characters (Co - Private Use)
+    - Unassigned characters (Cn - Not Assigned)
+    
+    Exceptions: tab, newline, and carriage return are preserved.
+    
+    :param attribute: The attribute to clean
+    :return: Attribute with invisible characters removed
+    """
+    if not attribute:
+        return attribute
+
+    def is_visible(c: str) -> bool:
+        if c in ('\t', '\n', '\r'):
+            return True
+        return not unicodedata.category(c).startswith('C')
+
+    cleaned_attribute = ''.join(c for c in attribute if is_visible(c))
+
+    if cleaned_attribute != attribute:
+        removed_chars = set(c for c in attribute if c not in cleaned_attribute)
+        logger.debug(
+            f"Removed invisible characters: "
+            f"{[f'U+{ord(c):04X}' for c in removed_chars]} "
+            f"from: {attribute[:100]}"
+        )
+
+    return cleaned_attribute.strip()
 
 def feedDefineMISPSearch(feed: str, requestData: dict) -> dict:
     """ The following function defines the search parameters for the MISP search.
@@ -203,8 +242,7 @@ def formatFeedOutputData(inputBlob: dict, outputType: str, dataType: str, cachin
         for item in outputBlob:
             fruit = ET.SubElement(root, 'entry')
             fruit.text = item
-        xmlStr = ET.tostring(root, encoding='utf8', method='xml')
-        outputContent = xmlStr.decode('utf-8')
+        outputContent = ET.tostring(root, encoding='unicode', method='xml')
         returnValue['content_type'] = contentType[outputType]
         returnValue['content'] = outputContent
         if (cachingTime > 0):
@@ -272,13 +310,18 @@ def mispDataParsingSimple(mispObject: dict, dataType: str) -> list:
         'hassh-md5': r'([a-f0-9]{32})',
         'hasshserver-md5': r'([a-f0-9]{32})',
         'imphash': r'([a-f0-9]{32})',
-        'crypto-currency': r'((^([13][a-km-zA-HJ-NP-Z0-9]{26,33})$)|(^()(4|8)?[0-9A-Z]{1}[0-9a-zA-Z]{93}([0-9a-zA-Z]{11})?)$)'
+        'crypto-currency': r'((^([13][a-km-zA-HJ-NP-Z0-9]{26,33})$)|(^()(4|8)?[0-9A-Z]{1}[0-9a-zA-Z]{93}([0-9a-zA-Z]{11})?)$)',
+        'chrome-extension-id': r'([a-p]{32})',
+        'edge-extension-id': r'([a-p]{32})'
     }
 
     returnData = []
     
     for mispAttribute in mispObject['content']:
         valueStr = mispAttribute['value']
+        # Remove invisible characters that can cause issues in various output formats from MISP attributes
+        valueStr = removeInvisibleCharacters(valueStr)
+        
         if (dataType == 'ipv6'):
             try:
                 addr = ipaddress.IPv6Address(valueStr)

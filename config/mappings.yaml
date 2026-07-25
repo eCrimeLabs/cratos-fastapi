@@ -108,3 +108,7 @@ types:
   crypto-currency:
     - btc
     - xmr
+  chrome-extension-id:
+    - chrome-extension-id
+  edge-extension-id:
+    - edge-extension-id

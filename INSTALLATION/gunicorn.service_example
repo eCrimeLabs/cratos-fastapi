@@ -7,7 +7,10 @@ User=fastapi
 Group=fastapi
 WorkingDirectory=/opt/cratos-fastapi
 Environment="PATH=/opt/cratos-fastapi/.venv/bin"
-ExecStart=/opt/cratos-fastapi/.venv/bin/gunicorn -w 6 -b 0.0.0.0:8080 -k uvicorn.workers.UvicornWorker app.main:app --error-logfile /var/log/cratos/general.log --forwarded-allow-ips '*' --proxy-protocol -u fastapi -g fastapi --chdir /opt/cratos-fastapi --reload --max-requests 250 --max-requests-jitter 15
+# Reference gunicorn_config.py rather than duplicating flags here - keeps bind address,
+# worker count, reload, and proxy settings in one place instead of two configs drifting
+# out of sync with each other.
+ExecStart=/opt/cratos-fastapi/.venv/bin/gunicorn app.main:app --config /opt/cratos-fastapi/gunicorn_config.py
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5

@@ -117,7 +117,7 @@ def mispGETRequest(url: str, headers: dict, timeout: int, verify: bool) -> dict:
             requestResponse['encoding'] = r.encoding
             requestResponse['content'] = r.text
             return(requestResponse)              
-    except:
+    except (ValueError, KeyError, AttributeError) as e:
         requestResponse['status'] = False
         requestResponse['error_num'] = 5
         requestResponse['error'] = ("MISP - Parsing error")
@@ -166,7 +166,7 @@ def mispGetStatistics(mispURL: str, mispAuthKey: str) -> dict:
     mispResponse = mispGETRequest(mispURL + '/attributes/attributeStatistics', headers, 30, True)
     mispResponse['misp_host'] = mispURL
 
-    if not (isinstance(mispResponse['content'], dict)):
+    if mispResponse['status'] and not (isinstance(mispResponse['content'], dict)):
         mispResponse['status'] = False
         mispResponse['error_num'] = 6
         mispResponse['error'] = ("MISP - None JSON data returned")
@@ -187,8 +187,8 @@ def mispGetWarninglists(mispURL: str, mispAuthKey: str, warninglistId: int) -> d
     headers=mispRequestHeader(mispAuthKey)
     mispResponse = mispGETRequest(mispURL + warninglistURI, headers, 30, True)
     mispResponse['misp_host'] = mispURL
-    
-    if not (isinstance(mispResponse['content'], dict)):
+
+    if mispResponse['status'] and not (isinstance(mispResponse['content'], dict)):
         mispResponse['status'] = False
         mispResponse['error_num'] = 6
         mispResponse['error'] = ("MISP - None JSON data returned")
