@@ -138,6 +138,18 @@ def ipOnAllowList(srcIP: str, globalIPs: list, orgIPs: list) -> dict:
     return {'status': False, 'detail': srcIP + ' are not allowed to access the MISP instance.'}
 
 
+def blacklistApiTokenCheck(orgConfigData: dict, apiToken: str) -> dict:
+    """ Validates if the provided API token is in the blacklist, and should not be allowed to access the API
+        In the local config file for the MISP instance, you add the sha256 checksum of the token under the "blacklisted_api_tokens" list.
+    :param apiToken: The Cratos API token that is used to access the MISP instance
+    :return: Dict with informaiton if the token is blacklisted or not
+    """
+    sha256Token = hashlib.sha256(apiToken.encode()).hexdigest()
+    if 'blacklisted_api_tokens' in orgConfigData:
+        if sha256Token in orgConfigData['blacklisted_api_tokens']:
+            return {'status': False, 'detail': 'The provided API token is blacklisted and cannot be used.'}
+    return {'status': True}
+
 def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
     """ Decrypts security token and validates vairous data including the src IP and returns object data from site
         config including url and MISP api token.
@@ -163,10 +175,16 @@ def checkApiToken(apiToken: str, salt: str, password: str, srcIP: str) -> dict:
             """ The token could not be decrypted """
             return decryptedConfigToken
 
+
         orgConfigData = orgConfigExtraction(decryptedConfigToken['detail'])
         if not orgConfigData['status']:
             """ Extraction of the config data failed """
             return orgConfigData
+
+        blacklistCheck = blacklistApiTokenCheck(orgConfigData['config'], apiToken)
+        if not blacklistCheck['status']:
+            """ The provided API token is blacklisted """
+            return blacklistCheck
 
         allowedIP = ipOnAllowList(srcIP, configCore['allways_allowed_ips'], orgConfigData['config']['allowed_ips'])
         if not allowedIP['status']:

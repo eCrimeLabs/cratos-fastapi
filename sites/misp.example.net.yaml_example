@@ -26,5 +26,6 @@ ignore_to_ids:
   - "yara"
   - "sigma"
   - "ja3"
-
+blacklisted_api_tokens:
+  - "empty"
 # EOF
