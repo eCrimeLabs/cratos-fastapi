@@ -407,7 +407,7 @@
     },
     {
       "bom-ref": "requirements-L34",
-      "description": "requirements line 34: pymisp==2.5.34.1",
+      "description": "requirements line 34: pymisp==2.5.34.2",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -416,9 +416,9 @@
         }
       ],
       "name": "pymisp",
-      "purl": "pkg:pypi/pymisp@2.5.34.1",
+      "purl": "pkg:pypi/pymisp@2.5.34.2",
       "type": "library",
-      "version": "2.5.34.1"
+      "version": "2.5.34.2"
     },
     {
       "bom-ref": "requirements-L35",
@@ -850,7 +850,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-08-22T06:03:13.920750+00:00",
+    "timestamp": "2026-08-22T06:25:35.747680+00:00",
     "tools": {
       "components": [
         {
@@ -954,7 +954,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:b2dc2f4f-06c2-48bb-9e47-ea374865c492",
+  "serialNumber": "urn:uuid:55f0af07-b9a8-426e-9602-cdfd333fba23",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

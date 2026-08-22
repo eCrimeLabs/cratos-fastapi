@@ -31,7 +31,7 @@ pycparser==3.0
 pydantic==2.13.4
 pydantic-core==2.46.4
 pygments==2.20.0
-pymisp==2.5.34.1
+pymisp==2.5.34.2
 pytest==9.1.1
 pytest-sugar==1.1.1
 python-binary-memcached==0.32.0
