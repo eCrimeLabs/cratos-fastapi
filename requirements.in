@@ -14,7 +14,7 @@ python-dateutil
 pyyaml
 jinja2
 python-multipart
-cryptography>=41.0.7
+cryptography>=50.0.0
 dicttoxml
 python-binary-memcached
 yamale
