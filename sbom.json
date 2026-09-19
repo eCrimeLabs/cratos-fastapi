@@ -32,7 +32,7 @@
     },
     {
       "bom-ref": "requirements-L9",
-      "description": "requirements line 9: anyio==4.14.1",
+      "description": "requirements line 9: anyio==4.14.2",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -41,9 +41,9 @@
         }
       ],
       "name": "anyio",
-      "purl": "pkg:pypi/anyio@4.14.1",
+      "purl": "pkg:pypi/anyio@4.14.2",
       "type": "library",
-      "version": "4.14.1"
+      "version": "4.14.2"
     },
     {
       "bom-ref": "requirements-L10",
@@ -212,7 +212,7 @@
     },
     {
       "bom-ref": "requirements-L21",
-      "description": "requirements line 21: httpcore2==2.5.0",
+      "description": "requirements line 21: httpcore2==2.13.0",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -221,13 +221,13 @@
         }
       ],
       "name": "httpcore2",
-      "purl": "pkg:pypi/httpcore2@2.5.0",
+      "purl": "pkg:pypi/httpcore2@2.13.0",
       "type": "library",
-      "version": "2.5.0"
+      "version": "2.13.0"
     },
     {
       "bom-ref": "requirements-L22",
-      "description": "requirements line 22: httpx2==2.5.0",
+      "description": "requirements line 22: httpx2==2.13.0",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -236,9 +236,9 @@
         }
       ],
       "name": "httpx2",
-      "purl": "pkg:pypi/httpx2@2.5.0",
+      "purl": "pkg:pypi/httpx2@2.13.0",
       "type": "library",
-      "version": "2.5.0"
+      "version": "2.13.0"
     },
     {
       "bom-ref": "requirements-L23",
@@ -850,7 +850,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-08-22T06:25:35.747680+00:00",
+    "timestamp": "2026-09-19T08:24:07.217692+00:00",
     "tools": {
       "components": [
         {
@@ -954,7 +954,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:55f0af07-b9a8-426e-9602-cdfd333fba23",
+  "serialNumber": "urn:uuid:08764a63-623b-4880-9f18-a86dd283a136",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
