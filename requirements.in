@@ -1,6 +1,6 @@
 wheel
 fastapi>=0.138.1
-starlette
+starlette>=1.0.1
 typing_extensions
 pytest
 pytest-sugar
