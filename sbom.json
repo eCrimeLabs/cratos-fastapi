@@ -47,7 +47,7 @@
     },
     {
       "bom-ref": "requirements-L10",
-      "description": "requirements line 10: certifi==2026.6.17",
+      "description": "requirements line 10: certifi==2026.10.23",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -56,9 +56,9 @@
         }
       ],
       "name": "certifi",
-      "purl": "pkg:pypi/certifi@2026.6.17",
+      "purl": "pkg:pypi/certifi@2026.10.23",
       "type": "library",
-      "version": "2026.6.17"
+      "version": "2026.10.23"
     },
     {
       "bom-ref": "requirements-L11",
@@ -632,7 +632,7 @@
     },
     {
       "bom-ref": "requirements-L49",
-      "description": "requirements line 49: urllib3==2.7.0",
+      "description": "requirements line 49: urllib3==2.8.0",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -641,9 +641,9 @@
         }
       ],
       "name": "urllib3",
-      "purl": "pkg:pypi/urllib3@2.7.0",
+      "purl": "pkg:pypi/urllib3@2.8.0",
       "type": "library",
-      "version": "2.7.0"
+      "version": "2.8.0"
     },
     {
       "bom-ref": "requirements-L50",
@@ -850,7 +850,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-09-19T09:08:20.671692+00:00",
+    "timestamp": "2026-10-24T18:29:56.582178+00:00",
     "tools": {
       "components": [
         {
@@ -954,7 +954,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:7a14e861-1b4d-44b7-a85d-812bb6aa02fd",
+  "serialNumber": "urn:uuid:dfc62bbf-0721-451f-aa43-a241d9ba9c0d",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

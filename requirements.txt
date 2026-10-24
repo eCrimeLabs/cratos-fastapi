@@ -7,7 +7,7 @@
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.14.2
-certifi==2026.6.17
+certifi==2026.10.23
 cffi==2.0.0
 charset-normalizer==3.4.7
 click==8.4.2
@@ -46,7 +46,7 @@ truststore==0.10.4
 typing-extensions==4.15.0
 typing-inspection==0.4.2
 uhashring==2.4
-urllib3==2.7.0
+urllib3==2.8.0
 uvicorn==0.53.0
 wheel==0.47.0
 wrapt==2.2.2
