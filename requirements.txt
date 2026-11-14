@@ -13,7 +13,7 @@ charset-normalizer==3.4.7
 click==8.4.2
 cryptography==50.0.1
 defusedxml==0.7.1
-deprecated==1.3.1
+deprecated==3.0.1
 dicttoxml==1.7.16
 fastapi==0.141.1
 fastapi-versioning==0.10.0
@@ -31,11 +31,11 @@ pycparser==3.0
 pydantic==2.13.4
 pydantic-core==2.46.4
 pygments==2.20.0
-pymisp==2.5.34.4
+pymisp==3.0.0
 pytest==9.1.1
 pytest-sugar==1.1.1
 python-binary-memcached==0.32.0
-python-dateutil==2.9.0.post0
+python-dateutil==4.0.0
 python-multipart==0.0.32
 pyyaml==6.0.3
 requests==2.34.2
@@ -45,6 +45,7 @@ termcolor==3.3.0
 truststore==0.10.4
 typing-extensions==4.15.0
 typing-inspection==0.4.2
+tzdata==2026.6
 uhashring==2.4
 urllib3==2.8.0
 uvicorn==0.53.0
